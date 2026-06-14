@@ -8,7 +8,7 @@
 //   <lang xml:lang="zh-..."> 部分を <voice name="中国語声"><prosody> に置換する。
 //   これで日本語/中国語の声・速度を別々に制御できる。
 
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 
 const KEY_STORAGE = "ssml_mp3_studio_api_key";
 const SETTINGS_STORAGE = "ssml_mp3_studio_settings";

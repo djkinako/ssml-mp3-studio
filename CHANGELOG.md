@@ -8,6 +8,20 @@
 
 ---
 
+## [0.4.0] - 2026-06-14
+
+### 追加
+- 🎧 **Issue 起点 SSML 生成ワークフロー** を導入。日本語+台湾華語(繁体字)ペアを GitHub Issue で投げると、Claude Code が `prompts/zhtw-v4.md` を使って段階的中国語化 SSML を生成し Issue にコメント返信する
+- 📋 `prompts/zhtw-v4.md` — Web 版 Claude セッションで 4 ループ検証した台湾華語学習教材 SSML 生成プロンプト v4 を配置。N1〜N2 学習者向け・関西弁トーン・成語解説・5項目セルフレビュー指示込み
+- 📋 `.github/ISSUE_TEMPLATE/audio-lesson.yml` — 「🎧 中国語学習音声 SSML 生成依頼」Issue テンプレ
+- 📋 `CLAUDE.md` に Issue 起点ワークフローの手順を明文化(Claude Code の責務範囲・コメント形式・守るべきこと)
+- 📋 README に「学習教材を作る(Issue 起点ワークフロー)」セクション追加
+
+### 背景
+Web 版 Claude セッションで「Multi-Agent + GitHub Issue + ffmpeg + Drive 統合」のフル仕様 (zhtw-audio-lab) 構想を立てたが、4視点 (architect/critic/engineer/UX) でレビューした結果、「ssml-mp3-studio v0.3.0 が既にコア論点を解決済みのため申し送り書の大部分は過剰」と全員一致。プロンプト v4 を ssml-mp3-studio に同居させ、Issue 起票 → SSML 生成 → ブラウザで MP3 化 のシンプルワークフローに集約。
+
+---
+
 ## [0.3.0] - 2026-06-14
 
 ### 追加

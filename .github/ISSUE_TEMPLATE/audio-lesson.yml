@@ -1,0 +1,55 @@
+name: 🎧 中国語学習音声 SSML 生成依頼
+description: 日本語+台湾華語(繁体字)のペアから学習用 SSML を生成する
+title: "[Audio Lesson] "
+labels: ["audio-lesson"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 使い方
+        1. 下の欄に **日本語文 + 台湾華語(繁体字)文のペア** を入力(複数可、`---` 区切り)
+        2. Issue を起票したらコメントで「対応して」or Claude Code 起動
+        3. Claude Code が `prompts/zhtw-v4.md` を使って SSML を生成し、このIssueに貼る
+        4. 生成された SSML をコピー → [SSML MP3 Studio](https://djkinako.github.io/ssml-mp3-studio/) に貼って MP3 ダウンロード
+
+        ※ MP3 生成は自動化されません(ブラウザで手作業)。これは vibe coding 流儀で意図的にシンプル化。
+
+  - type: textarea
+    id: lesson-pairs
+    attributes:
+      label: 例文ペア(複数可、`---` 区切り)
+      description: |
+        日本語と中国語(台湾華語、繁体字)のペアを記述。複数の例文は `---` で区切る。
+        中国語は **繁体字** で書くこと(簡体字で書くと変換されない)。
+      placeholder: |
+        日本語: もし時間があれば、ちょっと手伝ってほしいんだけど
+        中国語: 如果有時間的話，能不能幫我一下？
+        ---
+        日本語: 彼は何があっても諦めない
+        中国語: 他無論如何都不會放棄
+      render: markdown
+    validations:
+      required: true
+
+  - type: dropdown
+    id: pace-of-pause
+    attributes:
+      label: 考える時間(ヒント後のポーズ)
+      description: ヒントを聴いた後の「考える時間」のポーズ秒数を選ぶ
+      options:
+        - "標準 (4秒) — プロンプト v4 のデフォルト"
+        - "短め (3秒) — テンポ重視"
+        - "長め (6秒) — じっくり考えたい時"
+      default: 0
+    validations:
+      required: false
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: メモ(任意)
+      description: "特別な指示や、特定の解説観点(例: 「成語より構文を厚めに」「副詞のニュアンス重視」など)があれば"
+      placeholder: |
+        例: この回は特に「把構文」と「被構文」の対比を意識した解説にしてほしい
+    validations:
+      required: false
