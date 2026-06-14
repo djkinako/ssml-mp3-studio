@@ -97,4 +97,4 @@ code { background: #eef0f2; padding: 1px 5px; border-radius: 4px; font-size: 0.8
 
 #result { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
 #player { width: 100%; }
-.hidden { display: none; }
+.hidden { display: none !important; }
