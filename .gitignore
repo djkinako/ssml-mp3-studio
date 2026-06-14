@@ -1,0 +1,16 @@
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
+
+# 生成物 / 一時ファイル
+*.mp3
+output/
+tmp/
+
+# 万一の鍵漏れ防止（基本コードに鍵は書かない方針）
+.env
+*.key
+credentials.json

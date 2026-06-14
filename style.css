@@ -1,0 +1,100 @@
+/* SSML MP3 Studio — MVP スタイル（後で Claude Design で刷新する前提の素朴版） */
+:root {
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --border: #e1e4e8;
+  --text: #1a1a1a;
+  --muted: #6a737d;
+  --primary: #2d7d46;
+  --primary-hover: #246638;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+header { text-align: center; margin-bottom: 24px; }
+header h1 { margin: 0 0 4px; font-size: 1.6rem; }
+.subtitle { color: var(--muted); margin: 0; }
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.card h2 { font-size: 1rem; margin: 0 0 12px; }
+
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+
+label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); }
+
+input[type="password"], select, textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #fff;
+}
+input[type="password"] { flex: 1; }
+
+textarea {
+  resize: vertical;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+input[type="range"] { width: 100%; }
+
+.btn-primary, .btn-secondary {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  width: 100%;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-secondary {
+  background: #eef0f2;
+  color: var(--text);
+}
+.btn-secondary:hover { background: #e1e4e8; }
+
+.hint { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; }
+code { background: #eef0f2; padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
+
+.status { margin: 12px 0 0; font-weight: 500; min-height: 1.4em; }
+
+#result { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
+#player { width: 100%; }
+.hidden { display: none; }
