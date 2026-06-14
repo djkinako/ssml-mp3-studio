@@ -1,154 +1,551 @@
-/* SSML MP3 Studio — MVP スタイル（後で Claude Design で刷新する前提の素朴版） */
+/* SSML MP3 Studio — v0.9.0 "ノート手書きトーン" デザイン (Claude Design v2 ベース) */
+
 :root {
-  --bg: #f5f6f8;
-  --card: #ffffff;
-  --border: #e1e4e8;
-  --text: #1a1a1a;
-  --muted: #6a737d;
-  --primary: #2d7d46;
-  --primary-hover: #246638;
+  /* 配色 */
+  --bg: #c9cdbf;            /* ページ背景 (くすみベージュ) */
+  --sheet: #fbfdf6;          /* ノートシート */
+  --rule: #d3e6d6;           /* 罫線(薄緑) */
+  --margin: #ff9bbf;         /* ピンクマージン縦線 */
+  --ink: #23271a;            /* テキスト・枠線 (ほぼ黒) */
+  --ink-soft: #4a4e3c;       /* サブテキスト */
+  --muted: #8a8d76;          /* 補助テキスト */
+  --accent: #ffe000;         /* アクセント(黄色マーカー) */
+  --accent-pink: #ffb3d1;    /* アクセント(ピンクマーカー) */
+  --primary: #00c853;        /* メイン緑 */
+  --primary-dark: #1f9b4e;
+  --green-soft: #7fd89a;     /* スライダーフィル(緑) */
+  --pink-soft: #ff9bbf;      /* スライダーフィル(ピンク) */
+  --warn: #c0392b;           /* エラー(赤) */
+
+  /* スペーシング・形状 */
+  --sheet-radius: 6px;
+  --card-radius: 12px;
+  --btn-radius: 10px;
+  --pill-radius: 99px;
 }
 
 * { box-sizing: border-box; }
 
-body {
+html, body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
-  background: var(--bg);
-  color: var(--text);
+  padding: 0;
+}
+
+body {
+  font-family: "Zen Maru Gothic", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  font-weight: 500;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 18% 10%, rgba(255,255,255,0.35), transparent 45%),
+    radial-gradient(circle at 85% 90%, rgba(0,0,0,0.06), transparent 40%),
+    var(--bg);
+  min-height: 100vh;
   line-height: 1.6;
 }
 
-.container {
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 24px 16px 64px;
+.page {
+  padding: 40px 24px 70px;
 }
 
-header { text-align: center; margin-bottom: 24px; }
-header h1 { margin: 0 0 4px; font-size: 1.6rem; }
-.subtitle { color: var(--muted); margin: 0; }
-.version {
-  font-size: 0.7rem;
-  color: var(--muted);
-  font-weight: normal;
-  letter-spacing: 0.02em;
-  vertical-align: middle;
-  margin-left: 4px;
+/* ---- 上部ラベル ---- */
+.top-label {
+  max-width: 880px;
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
 }
-
-.card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 20px;
-  margin-bottom: 16px;
-}
-
-.card h2 { font-size: 1rem; margin: 0 0 12px; }
-
-.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
-
-label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); }
-
-input[type="password"], select, textarea {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
+.top-tag {
+  font-family: "Dela Gothic One", sans-serif;
+  font-size: 12px;
+  background: var(--ink);
+  color: var(--accent);
   border-radius: 8px;
-  font-size: 0.95rem;
-  font-family: inherit;
+  padding: 6px 13px;
+  transform: rotate(-1.5deg);
+}
+.top-sub {
+  font-family: "Yomogi", cursive;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* ---- ノート ---- */
+.notebook {
+  max-width: 880px;
+  margin: 0 auto;
+  position: relative;
+}
+
+/* スパイラル綴じ */
+.spiral {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  height: 22px;
+  padding: 0 30px;
+  position: relative;
+  z-index: 3;
+}
+.spiral span {
+  width: 13px;
+  height: 26px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #e9e9e9, #9a9a9a);
+  border: 1.5px solid #6a6a6a;
+  display: block;
+}
+
+/* シート本体 */
+.sheet {
+  background:
+    linear-gradient(var(--rule) 1px, transparent 1px) 0 0/100% 27px,
+    var(--sheet);
+  border: 2.5px solid var(--ink);
+  border-radius: var(--sheet-radius);
+  box-shadow:
+    0 18px 0 -6px rgba(0,0,0,0.10),
+    0 26px 40px rgba(0,0,0,0.22);
+  padding: 30px 38px 44px 84px;
+  position: relative;
+  margin-top: -12px;
+}
+@media (max-width: 640px) {
+  .sheet {
+    padding: 24px 18px 32px 52px;
+  }
+}
+
+/* ピンクマージン縦線 */
+.margin-line {
+  position: absolute;
+  left: 60px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--margin);
+}
+@media (max-width: 640px) {
+  .margin-line { left: 38px; }
+}
+
+/* マスキングテープでバージョン */
+.washi-tape {
+  position: absolute;
+  right: 26px;
+  top: -10px;
+  font-family: "Dela Gothic One", sans-serif;
+  font-size: 12px;
+  color: #3a3e2c;
+  background: rgba(255, 224, 0, 0.82);
+  padding: 7px 16px;
+  transform: rotate(3deg);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  border-left: 2px dashed rgba(0,0,0,0.15);
+  border-right: 2px dashed rgba(0,0,0,0.15);
+  z-index: 4;
+}
+
+/* ---- ヘッダー ---- */
+.hdr {
+  margin-bottom: 30px;
+}
+.hdr-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hdr-emoji {
+  font-size: 34px;
+  display: inline-block;
+  transform: rotate(-7deg);
+  filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.15));
+}
+.hdr h1 {
+  font-family: "Dela Gothic One", sans-serif;
+  font-size: 33px;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+.hl {
+  background: linear-gradient(transparent 58%, var(--accent) 58%);
+  padding: 0 2px;
+}
+.hdr-sub {
+  font-family: "Yomogi", cursive;
+  font-size: 15.5px;
+  color: var(--ink-soft);
+  margin: 12px 0 0 4px;
+}
+.hdr-pills {
+  margin-top: 12px;
+  margin-left: 4px;
+  display: inline-flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  font-family: "Yomogi", cursive;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+.pill {
+  white-space: nowrap;
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: var(--pill-radius);
+  padding: 3px 12px;
+}
+.pill-rot-l { transform: rotate(-1.5deg); }
+.pill-rot-r { transform: rotate(1.5deg); }
+
+/* ---- セクション(エントリ) ---- */
+.entry {
+  margin-bottom: 30px;
+}
+.entry-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+.num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2.5px solid var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Dela Gothic One", sans-serif;
+  font-size: 15px;
+  background: #fff;
+  flex-shrink: 0;
+}
+.num-rot-l { transform: rotate(-4deg); }
+.num-rot-r { transform: rotate(4deg); }
+.hl-bar {
+  font-family: "Yomogi", cursive;
+  font-weight: 700;
+  font-size: 19px;
+  border-bottom: 4px solid var(--accent);
+  padding-bottom: 1px;
+}
+.entry-body {
+  /* セクション本体は罫線に乗る形 */
+}
+
+/* ---- ヒント文(手書き風) ---- */
+.hint {
+  font-family: "Yomogi", cursive;
+  font-size: 13.5px;
+  color: var(--ink-soft);
+  margin: 12px 0 0;
+}
+.hint-handwritten { color: var(--ink-soft); }
+.hint.mono { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--muted); }
+.mono { font-family: "SF Mono", Menlo, monospace; }
+code {
+  background: rgba(255, 224, 0, 0.4);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 0.85em;
+}
+
+/* ---- 行・グリッド ---- */
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.row-end { justify-content: space-between; }
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 22px;
+}
+@media (max-width: 560px) {
+  .grid { grid-template-columns: 1fr; }
+}
+
+/* ---- フィールド ---- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.field-label {
+  font-family: "Yomogi", cursive;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.hl-num {
+  background: linear-gradient(transparent 50%, var(--accent) 50%);
+  font-family: "Dela Gothic One", sans-serif;
+  font-size: 14px;
+  padding: 0 4px;
+}
+.hl-num-pink {
+  background: linear-gradient(transparent 50%, var(--accent-pink) 50%);
+}
+
+/* ---- 入力欄 共通 ---- */
+input[type="password"],
+.select,
+textarea {
+  width: 100%;
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: var(--btn-radius);
+  padding: 0 14px;
+  height: 46px;
+  font-family: "Yomogi", cursive;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  outline: none;
+  transition: box-shadow 0.1s ease;
+}
+input[type="password"]:focus,
+.select:focus,
+textarea:focus {
+  box-shadow: 2.5px 2.5px 0 var(--ink);
+}
+input[type="password"] {
+  flex: 1;
+  min-width: 200px;
+  letter-spacing: 3px;
+}
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--primary-dark) 50%), linear-gradient(135deg, var(--primary-dark) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+  cursor: pointer;
+  height: 44px;
+}
+textarea {
+  height: auto;
+  min-height: 140px;
+  padding: 12px 14px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.55;
+  letter-spacing: 0;
+  resize: vertical;
+}
+
+/* ---- スライダー ---- */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 13px;
+  background: #fff;
+  border: 2px solid var(--ink);
+  border-radius: var(--pill-radius);
+  outline: none;
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2.5px solid var(--ink);
+  box-shadow: 1.5px 1.5px 0 var(--ink);
+  cursor: pointer;
+}
+.slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2.5px solid var(--ink);
+  box-shadow: 1.5px 1.5px 0 var(--ink);
+  cursor: pointer;
+}
+/* スライダーの色付き track (CSS のみで完全模倣は難しいので近似) */
+.slider-green::-webkit-slider-runnable-track {
+  height: 13px;
+  background: linear-gradient(90deg, var(--green-soft) 0 50%, #fff 50% 100%);
+  border-radius: var(--pill-radius);
+}
+.slider-pink::-webkit-slider-runnable-track {
+  height: 13px;
+  background: linear-gradient(90deg, var(--pink-soft) 0 50%, #fff 50% 100%);
+  border-radius: var(--pill-radius);
+}
+
+/* ---- ボタン共通 ---- */
+.btn {
+  height: 46px;
+  padding: 0 20px;
+  border: 2.5px solid var(--ink);
+  border-radius: var(--btn-radius);
+  font-family: "Yomogi", cursive;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 2.5px 2.5px 0 var(--ink);
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+  color: var(--ink);
   background: #fff;
 }
-input[type="password"] { flex: 1; }
-
-textarea {
-  resize: vertical;
-  font-family: "SF Mono", Menlo, monospace;
-  font-size: 0.85rem;
-  line-height: 1.5;
+.btn:hover:not(:disabled) {
+  transform: translate(1px, 1px);
+  box-shadow: 1px 1px 0 var(--ink);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.btn-save { background: var(--primary); }
+.btn-ghost { background: #fff; }
+.btn-secondary { background: #fff; padding: 0 14px; height: 38px; font-size: 13.5px; }
+.btn-add {
+  background: var(--accent);
+  font-family: "Dela Gothic One", sans-serif;
+  font-size: 14px;
 }
 
-input[type="range"] { width: 100%; }
-
-.btn-primary, .btn-secondary {
-  border: none;
-  border-radius: 8px;
-  padding: 10px 16px;
-  font-size: 0.95rem;
-  cursor: pointer;
-  font-family: inherit;
-}
-.btn-primary {
-  background: var(--primary);
-  color: #fff;
+/* ---- MP3 生成ボタン (メイン) ---- */
+.btn-generate {
   width: 100%;
-  font-weight: 600;
+  height: 64px;
+  background: var(--primary);
+  color: var(--ink);
+  border: 3px solid var(--ink);
+  border-radius: var(--card-radius);
+  font-family: "Dela Gothic One", sans-serif;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 var(--ink);
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
+  margin-top: 8px;
+}
+.btn-generate:hover:not(:disabled) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.btn-generate:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---- ステータス ---- */
+.status {
+  font-family: "Yomogi", cursive;
+  font-size: 15px;
+  font-weight: 700;
+  min-height: 1.4em;
+  margin: 14px 0 0;
+  color: var(--ink-soft);
+}
+
+/* ---- 結果カード ---- */
+#result {
+  margin-top: 18px;
+}
+.result-card {
+  background: #fffce0;
+  border: 2.5px solid var(--ink);
+  border-radius: var(--card-radius);
+  padding: 18px;
+  box-shadow: 3px 3px 0 var(--ink);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+#player {
+  width: 100%;
+}
+.btn-download {
+  display: inline-block;
+  width: 100%;
+  height: 52px;
+  line-height: 48px;
+  background: var(--accent);
+  color: var(--ink);
+  border: 2.5px solid var(--ink);
+  border-radius: var(--btn-radius);
+  font-family: "Dela Gothic One", sans-serif;
+  font-size: 16px;
   text-align: center;
   text-decoration: none;
-  display: inline-block;
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform 0.05s ease, box-shadow 0.05s ease;
 }
-.btn-primary:hover { background: var(--primary-hover); }
-.btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-.btn-secondary {
-  background: #eef0f2;
-  color: var(--text);
+.btn-download:hover {
+  transform: translate(1.5px, 1.5px);
+  box-shadow: 1.5px 1.5px 0 var(--ink);
 }
-.btn-secondary:hover { background: #e1e4e8; }
 
-.hint { color: var(--muted); font-size: 0.8rem; margin: 8px 0 0; }
-code { background: #eef0f2; padding: 1px 5px; border-radius: 4px; font-size: 0.85em; }
-
-.status { margin: 12px 0 0; font-weight: 500; min-height: 1.4em; }
-
-#result { margin-top: 16px; display: flex; flex-direction: column; gap: 12px; }
-#player { width: 100%; }
 .hidden { display: none !important; }
 
-/* ---- 複数 SSML ブロック (v0.6.0) ---- */
+/* ---- SSML ブロック ---- */
 .ssml-block {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
-  margin-top: 12px;
-  background: #fafbfc;
+  background: #fff;
+  border: 2.5px solid var(--ink);
+  border-radius: var(--card-radius);
+  padding: 14px 16px;
+  margin-top: 14px;
+  box-shadow: 3px 3px 0 var(--ink);
 }
 .ssml-block-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .ssml-block-header h3 {
-  font-size: 0.95rem;
+  font-family: "Yomogi", cursive;
+  font-size: 16px;
+  font-weight: 700;
   margin: 0;
-  color: var(--text);
+  color: var(--ink);
 }
 .btn-remove-block {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  width: 28px;
-  height: 28px;
+  background: #fff;
+  border: 2px solid var(--ink);
+  color: var(--ink);
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 1rem;
+  font-size: 16px;
+  font-weight: 700;
   line-height: 1;
   font-family: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 1.5px 1.5px 0 var(--ink);
 }
 .btn-remove-block:hover:not(:disabled) {
   background: #fde0e0;
-  color: #c0392b;
-  border-color: #c0392b;
+  color: var(--warn);
+  border-color: var(--warn);
 }
 .btn-remove-block:disabled {
   opacity: 0.3;
   cursor: not-allowed;
+  box-shadow: none;
 }
 .ssml-block-textarea {
   min-height: 140px;
@@ -157,11 +554,25 @@ code { background: #eef0f2; padding: 1px 5px; border-radius: 4px; font-size: 0.8
   display: flex;
   gap: 12px;
   align-items: center;
-  margin-top: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
 }
-.ssml-block-footer .btn-secondary {
-  padding: 6px 12px;
-  font-size: 0.85rem;
-}
-.ssml-block-bytes { margin: 0; }
 
+/* ---- フッター ---- */
+.footer {
+  max-width: 880px;
+  margin: 32px auto 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: "Yomogi", cursive;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.footer-link {
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 1px;
+}
+.footer-link:hover { color: var(--primary-dark); }

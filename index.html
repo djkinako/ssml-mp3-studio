@@ -4,101 +4,158 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SSML MP3 Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=Yomogi&family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <main class="container">
-    <header>
-      <h1>🔊 SSML MP3 Studio <span id="version" class="version"></span></h1>
-      <p class="subtitle">SSML を貼って、日中混在の学習音声を MP3 で書き出す</p>
-    </header>
+  <main class="page">
 
-    <!-- API キー -->
-    <section class="card">
-      <h2>1. Google TTS API キー</h2>
-      <div class="row">
-        <input type="password" id="apiKey" placeholder="API キーを貼り付け" autocomplete="off" />
-        <button id="saveKey" class="btn-secondary">保存</button>
-        <button id="clearKey" class="btn-secondary">クリア</button>
-      </div>
-      <p class="hint" id="keyStatus">キーは未保存です（このブラウザの localStorage にのみ保存されます）</p>
-    </section>
+    <!-- 上部ラベル -->
+    <div class="top-label">
+      <span class="top-tag">📓 SSML MP3 Studio</span>
+      <span class="top-sub">SSML を貼って、日中混在の学習音声を MP3 で書き出すノートやで🎧</span>
+    </div>
 
-    <!-- 声の設定 -->
-    <section class="card">
-      <h2>2. 声の設定</h2>
-      <div class="grid">
-        <label>
-          日本語の声
-          <select id="jaVoice">
-            <option value="ja-JP-Wavenet-B">日本語 女性 (Wavenet-B)</option>
-            <option value="ja-JP-Wavenet-A">日本語 女性 (Wavenet-A)</option>
-            <option value="ja-JP-Wavenet-C">日本語 男性 (Wavenet-C)</option>
-            <option value="ja-JP-Wavenet-D">日本語 男性 (Wavenet-D)</option>
-            <option value="ja-JP-Neural2-B">日本語 女性 (Neural2-B)</option>
-          </select>
-        </label>
-        <label>
-          中国語の声
-          <select id="zhVoice">
-            <option value="cmn-TW-Wavenet-A">台湾華語(繁) 女性 (Wavenet-A)</option>
-            <option value="cmn-TW-Wavenet-B">台湾華語(繁) 男性 (Wavenet-B)</option>
-            <option value="cmn-TW-Wavenet-C">台湾華語(繁) 男性 (Wavenet-C)</option>
-            <option value="cmn-CN-Wavenet-A">大陸普通話(簡) 女性 (Wavenet-A)</option>
-            <option value="cmn-CN-Wavenet-B">大陸普通話(簡) 男性 (Wavenet-B)</option>
-          </select>
-        </label>
-        <label>
-          日本語の速度 <span id="jaRateVal">1.0</span>
-          <input type="range" id="jaRate" min="0.5" max="1.5" step="0.05" value="1.0" />
-        </label>
-        <label>
-          中国語の速度 <span id="zhRateVal">1.0</span>
-          <input type="range" id="zhRate" min="0.5" max="1.5" step="0.05" value="1.0" />
-        </label>
-      </div>
-      <p class="hint">※ SSML 内の <code>&lt;lang xml:lang="zh-…"&gt;</code> で囲まれた中国語部分が、自動で「中国語の声」＋「中国語の速度」に切り替わります。台湾華語を学ぶなら Claude に<strong>繁体字</strong>で SSML を作ってもらうのがおすすめ。</p>
-    </section>
+    <!-- ノート本体 -->
+    <div class="notebook">
 
-    <!-- SSML 入力(複数ブロック対応) -->
-    <section class="card">
-      <h2>3. SSML を貼る</h2>
-      <p class="hint">
-        ブロックごとに 1 つの <code>&lt;speak&gt;</code> SSML を貼る。<br />
-        複数ブロックを入れると、順次 MP3 を生成して<strong>1 つのファイルに結合</strong>してくれる。
-        各ブロックは 5000 バイト上限で、ブロックを増やせば上限を実質回避できる。
-      </p>
-      <div id="ssml-blocks"></div>
-      <div class="row" style="margin-top: 12px;">
-        <button id="addBlock" class="btn-secondary">＋ ブロックを追加</button>
-        <span class="hint" id="totalByteCount">合計 0 バイト / 1 ブロック</span>
+      <!-- スパイラル綴じ -->
+      <div class="spiral" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span>
       </div>
-    </section>
 
-    <!-- ブロックのテンプレート(JS で複製して使う) -->
-    <template id="ssml-block-template">
-      <div class="ssml-block">
-        <div class="ssml-block-header">
-          <h3>ブロック <span class="ssml-block-num">1</span></h3>
-          <button class="btn-remove-block" type="button" title="このブロックを削除">×</button>
-        </div>
-        <textarea class="ssml-block-textarea" rows="8" spellcheck="false"></textarea>
-        <div class="ssml-block-footer">
-          <button class="btn-secondary btn-sample-block" type="button">サンプル投入</button>
-          <span class="hint ssml-block-bytes">0 バイト</span>
-        </div>
-      </div>
-    </template>
+      <!-- ノートシート -->
+      <div class="sheet">
 
-    <!-- 生成 -->
-    <section class="card">
-      <button id="generate" class="btn-primary">🔊 MP3 生成</button>
-      <p class="status" id="status"></p>
-      <div id="result" class="hidden">
-        <audio id="player" controls></audio>
-        <a id="download" class="btn-primary" download="ssml-output.mp3">⬇ ダウンロード</a>
-      </div>
-    </section>
+        <!-- 左のピンクマージン縦線 -->
+        <div class="margin-line" aria-hidden="true"></div>
+
+        <!-- マスキングテープでバージョン -->
+        <div class="washi-tape">v<span id="version">…</span></div>
+
+        <!-- ヘッダー -->
+        <header class="hdr">
+          <div class="hdr-title">
+            <span class="hdr-emoji">🔊</span>
+            <h1>SSML MP3 <span class="hl">Studio</span></h1>
+          </div>
+          <p class="hdr-sub">日本語＋台湾華語(繁体字)の混在 SSML を、声と速度を別々に効かせた MP3 にして焼くで🎧</p>
+          <div class="hdr-pills">
+            <span class="pill pill-rot-l">💪 ながら聴き教材</span>
+            <span class="pill pill-rot-r">🇯🇵＋🇹🇼 混在 OK</span>
+            <span class="pill pill-rot-l">📓 関西弁トーン</span>
+          </div>
+        </header>
+
+        <!-- ===== 1. API キー ===== -->
+        <section class="entry">
+          <h2 class="entry-title"><span class="num num-rot-l">1</span><span class="hl-bar">Google TTS API キー</span></h2>
+          <div class="entry-body">
+            <div class="row">
+              <input type="password" id="apiKey" placeholder="API キーを貼り付け" autocomplete="off" />
+              <button id="saveKey" class="btn btn-save">保存</button>
+              <button id="clearKey" class="btn btn-ghost">クリア</button>
+            </div>
+            <p class="hint hint-handwritten" id="keyStatus">キーは未保存です(このブラウザのノートだけに挟んどくから安心してな)</p>
+          </div>
+        </section>
+
+        <!-- ===== 2. 声の設定 ===== -->
+        <section class="entry">
+          <h2 class="entry-title"><span class="num num-rot-r">2</span><span class="hl-bar">声の設定</span></h2>
+          <div class="entry-body">
+            <div class="grid">
+              <label class="field">
+                <span class="field-label">日本語の声</span>
+                <select id="jaVoice" class="select">
+                  <option value="ja-JP-Wavenet-B">日本語 女性 (Wavenet-B)</option>
+                  <option value="ja-JP-Wavenet-A">日本語 女性 (Wavenet-A)</option>
+                  <option value="ja-JP-Wavenet-C">日本語 男性 (Wavenet-C)</option>
+                  <option value="ja-JP-Wavenet-D">日本語 男性 (Wavenet-D)</option>
+                  <option value="ja-JP-Neural2-B">日本語 女性 (Neural2-B)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">中国語の声</span>
+                <select id="zhVoice" class="select">
+                  <option value="cmn-TW-Wavenet-A">台湾華語(繁) 女性 (Wavenet-A)</option>
+                  <option value="cmn-TW-Wavenet-B">台湾華語(繁) 男性 (Wavenet-B)</option>
+                  <option value="cmn-TW-Wavenet-C">台湾華語(繁) 男性 (Wavenet-C)</option>
+                  <option value="cmn-CN-Wavenet-A">大陸普通話(簡) 女性 (Wavenet-A)</option>
+                  <option value="cmn-CN-Wavenet-B">大陸普通話(簡) 男性 (Wavenet-B)</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">日本語の速度 <span id="jaRateVal" class="hl-num">1.0</span></span>
+                <input type="range" id="jaRate" class="slider slider-green" min="0.5" max="1.5" step="0.05" value="1.0" />
+              </label>
+              <label class="field">
+                <span class="field-label">中国語の速度 <span id="zhRateVal" class="hl-num hl-num-pink">1.0</span></span>
+                <input type="range" id="zhRate" class="slider slider-pink" min="0.5" max="1.5" step="0.05" value="1.0" />
+              </label>
+            </div>
+            <p class="hint hint-handwritten">※ SSML 内の <code>&lt;lang xml:lang="zh-…"&gt;</code> で囲んだ中国語部分は、自動で「中国語の声」+「中国語の速度」に切り替わる仕組みやで。台湾華語を学ぶなら Claude に<strong>繁体字</strong>で SSML 作ってもらうのがおすすめ🎯</p>
+          </div>
+        </section>
+
+        <!-- ===== 3. SSML を貼る ===== -->
+        <section class="entry">
+          <h2 class="entry-title"><span class="num num-rot-l">3</span><span class="hl-bar">SSML を貼る</span></h2>
+          <div class="entry-body">
+            <p class="hint hint-handwritten">
+              ブロックごとに 1 つの <code>&lt;speak&gt;</code> SSML を貼る。<br />
+              複数ブロック入れたら、順次焼いて <strong>1 つの MP3 にがっちゃんこ</strong>してくれるで。各ブロック 5000 バイト上限、ブロック増やせば実質ノーリミットや。
+            </p>
+            <div id="ssml-blocks"></div>
+            <div class="row row-end">
+              <button id="addBlock" class="btn btn-add">＋ ブロックを追加</button>
+              <span id="totalByteCount" class="hint mono">合計 0 バイト / 1 ブロック</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ブロックテンプレート -->
+        <template id="ssml-block-template">
+          <div class="ssml-block">
+            <div class="ssml-block-header">
+              <h3>📝 ブロック <span class="ssml-block-num">1</span></h3>
+              <button class="btn-remove-block" type="button" title="このブロックを削除">×</button>
+            </div>
+            <textarea class="ssml-block-textarea" rows="8" spellcheck="false" placeholder="ここに <speak>...</speak> を貼ってな"></textarea>
+            <div class="ssml-block-footer">
+              <button class="btn btn-sample-block btn-secondary" type="button">サンプル投入</button>
+              <span class="hint ssml-block-bytes mono">0 バイト / 約5000バイト上限</span>
+            </div>
+          </div>
+        </template>
+
+        <!-- ===== 4. MP3 を焼 ===== -->
+        <section class="entry entry-final">
+          <h2 class="entry-title"><span class="num num-rot-r">4</span><span class="hl-bar">MP3 を焼</span></h2>
+          <div class="entry-body">
+            <button id="generate" class="btn-generate">📀 MP3 作るで</button>
+            <p class="status" id="status"></p>
+            <div id="result" class="hidden">
+              <div class="result-card">
+                <audio id="player" controls></audio>
+                <a id="download" class="btn-download" download="ssml-output.mp3">⬇ ダウンロード</a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div><!-- /.sheet -->
+    </div><!-- /.notebook -->
+
+    <!-- フッター -->
+    <footer class="footer">
+      <span class="footer-tag">© SSML MP3 Studio</span>
+      <a href="https://github.com/djkinako/ssml-mp3-studio" class="footer-link">GitHub</a>
+    </footer>
+
   </main>
 
   <script src="app.js"></script>
