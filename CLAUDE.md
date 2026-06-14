@@ -74,7 +74,7 @@ SSML テキストを Google Cloud Text-to-Speech API に投げて、日中混在
 - **SSML の検証**: 出力する前に `prompts/zhtw-v4.md` 末尾の「セルフレビュー5項目」を必ずチェック。
 - **コメント Body の冒頭**: グローバル CLAUDE.md ルールに従い `[モデル名] djkinako/ssml-mp3-studio番頭` プレフィックスを付ける。
 
-### Issue 対応コメントのフォーマット例
+### Issue 対応コメントのフォーマット例 (v0.5.0〜: 全ペア統合版)
 
 ```markdown
 [Opus 4.7] djkinako/ssml-mp3-studio番頭
@@ -83,26 +83,25 @@ SSML テキストを Google Cloud Text-to-Speech API に投げて、日中混在
 - 例文ペア N 組 (構文: 把/被/成語/...)
 - 特別な指示: ...
 
-SSML 生成したで👇
-
-### ペア1: もし時間があれば、ちょっと手伝ってほしいんだけど
+SSML 生成したで👇 全ペアを 1 つの SSML に統合してあるから、これ 1 個コピーして貼ったら 1 MP3 になる。
 
 \`\`\`xml
 <speak>
-  ...
+[ペア1: 例文 → ヒント1 → ヒント2 → ヒント3 → 正解 → 解説]
+<break time="3s"/>
+次いくで。<break time="2s"/>
+[ペア2: 例文 → ...]
+<break time="3s"/>
+お次や。<break time="2s"/>
+[ペアN: ...]
 </speak>
 \`\`\`
 
-### ペア2: 彼は何があっても諦めない
-
-\`\`\`xml
-<speak>
-  ...
-</speak>
-\`\`\`
+(N ペアの合計バイト数: XXXX バイト / 5000 上限)
 
 ---
 
-👉 これを https://djkinako.github.io/ssml-mp3-studio/ に貼って MP3 生成してな。
-ペアごとに別 SSML やから、1つずつ貼って生成するで。
+👉 https://djkinako.github.io/ssml-mp3-studio/ に貼って 🔊 MP3 生成。
 ```
+
+**5000 バイト超の場合**: 上記を複数 SSML に分割し、グループごとに ```xml ブロックを並べる。各ブロックの先頭に「**グループ1/3 (1850バイト)**」のような見出しを付ける。
