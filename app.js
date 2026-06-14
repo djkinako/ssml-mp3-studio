@@ -14,7 +14,7 @@
 //   バイナリ連結で動く(ffmpeg / Web Audio API 不要)。
 //   これで 5000 バイト上限を SSML レベルで気にせんで済む。
 
-const VERSION = "0.8.0";
+const VERSION = "0.8.1";
 
 const KEY_STORAGE = "ssml_mp3_studio_api_key";
 const SETTINGS_STORAGE = "ssml_mp3_studio_settings";
@@ -200,7 +200,9 @@ async function ttsOnce(apiKey, ssml, jaVoice, zhVoice, jaRate, zhRate) {
   const payload = {
     input: { ssml: built },
     voice: { languageCode: langCodeFromVoice(jaVoice), name: jaVoice },
-    audioConfig: { audioEncoding: "MP3", speakingRate: 1.0 },
+    // sampleRateHertz: 24000 を明示。効果音(audio/*.mp3 も 24kHz mono に変換済み)と
+    // フォーマットを完全一致させることで、MP3 連結時の再生中断を防ぐ。
+    audioConfig: { audioEncoding: "MP3", speakingRate: 1.0, sampleRateHertz: 24000 },
   };
   const res = await fetch(
     `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`,

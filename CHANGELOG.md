@@ -8,6 +8,18 @@
 
 ---
 
+## [0.8.1] - 2026-06-14
+
+### 修正
+- 🐛 **効果音再生で MP3 停止するバグを修正**。原因は MP3 フォーマット不一致(効果音: 44.1kHz JntStereo 128/192kbps + ID3v2.4 タグ / Google TTS: 24kHz mono 64kbps + ID3 なし)で、連結時にデコーダがフレームヘッダー切替で詰まっていた
+- 🎵 効果音 `audio/explain.mp3` `audio/transition.mp3` を **24kHz Monaural 64kbps CBR・ID3v2 なし** (Google TTS 出力と完全一致) で再エンコード
+- 🔧 `app.js`: TTS API リクエストの `audioConfig` に `sampleRateHertz: 24000` を明示。Google TTS の出力フォーマットを今後も 24kHz mono に固定して効果音と完全一致を保証
+
+### 背景
+きなこの実機検証で「効果音を再生する部分で MP3 が止まる」報告を受け、フォーマット不整合を特定。`file` コマンドで MP3 ヘッダー解析、`xxd` で ID3 タグの有無確認、ffmpeg で 24kHz mono への再エンコードという順で修正。
+
+---
+
 ## [0.8.0] - 2026-06-14
 
 ### 追加
