@@ -7,6 +7,7 @@
 
 # 生成物 / 一時ファイル
 *.mp3
+!audio/*.mp3
 output/
 tmp/
 
