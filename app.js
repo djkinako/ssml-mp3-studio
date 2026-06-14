@@ -8,7 +8,10 @@
 //   <lang xml:lang="zh-..."> 部分を <voice name="中国語声"><prosody> に置換する。
 //   これで日本語/中国語の声・速度を別々に制御できる。
 
+const VERSION = "0.3.0";
+
 const KEY_STORAGE = "ssml_mp3_studio_api_key";
+const SETTINGS_STORAGE = "ssml_mp3_studio_settings";
 
 const $ = (id) => document.getElementById(id);
 
@@ -47,13 +50,53 @@ $("clearKey").addEventListener("click", () => {
   $("keyStatus").textContent = "🗑 キーを削除しました";
 });
 
+// ---- 声・速度の設定保存/復元 ----
+// 声2 + 速度2 を 1 つの JSON として localStorage に保存し、
+// 次回ブラウザを開いた時に自動で復元する。
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_STORAGE);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (s.jaVoice && $("jaVoice").querySelector(`option[value="${s.jaVoice}"]`)) {
+      $("jaVoice").value = s.jaVoice;
+    }
+    if (s.zhVoice && $("zhVoice").querySelector(`option[value="${s.zhVoice}"]`)) {
+      $("zhVoice").value = s.zhVoice;
+    }
+    if (s.jaRate != null) {
+      $("jaRate").value = s.jaRate;
+      $("jaRateVal").textContent = parseFloat(s.jaRate).toFixed(2);
+    }
+    if (s.zhRate != null) {
+      $("zhRate").value = s.zhRate;
+      $("zhRateVal").textContent = parseFloat(s.zhRate).toFixed(2);
+    }
+  } catch {
+    // 壊れた JSON は黙って無視（デフォルト値で続行）
+  }
+}
+
+function saveSettings() {
+  localStorage.setItem(SETTINGS_STORAGE, JSON.stringify({
+    jaVoice: $("jaVoice").value,
+    zhVoice: $("zhVoice").value,
+    jaRate: $("jaRate").value,
+    zhRate: $("zhRate").value,
+  }));
+}
+
 // ---- 速度スライダー UI ----
 $("jaRate").addEventListener("input", (e) => {
   $("jaRateVal").textContent = parseFloat(e.target.value).toFixed(2);
+  saveSettings();
 });
 $("zhRate").addEventListener("input", (e) => {
   $("zhRateVal").textContent = parseFloat(e.target.value).toFixed(2);
+  saveSettings();
 });
+$("jaVoice").addEventListener("change", saveSettings);
+$("zhVoice").addEventListener("change", saveSettings);
 
 // ---- SSML サンプル / バイト数 ----
 $("sampleBtn").addEventListener("click", () => {
@@ -182,5 +225,7 @@ function timestamp() {
 }
 
 // ---- 初期化 ----
+$("version").textContent = `v${VERSION}`;
 loadKey();
+loadSettings();
 updateByteCount();
