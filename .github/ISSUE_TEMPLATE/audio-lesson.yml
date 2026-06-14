@@ -44,6 +44,20 @@ body:
     validations:
       required: false
 
+  - type: dropdown
+    id: source-type
+    attributes:
+      label: ソース種別 (v1.1.0+)
+      description: 「Netflix・字幕」を選ぶと、翻訳意図の補足解説が強めに入る
+      options:
+        - "オリジナル / 教科書(直訳ベース)"
+        - "Netflix・映画・ドラマ字幕(意訳補足を期待)"
+        - "ニュース・記事"
+        - "歌詞・詩"
+      default: 0
+    validations:
+      required: false
+
   - type: textarea
     id: notes
     attributes:
