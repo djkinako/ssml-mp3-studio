@@ -14,10 +14,16 @@
 //   バイナリ連結で動く(ffmpeg / Web Audio API 不要)。
 //   これで 5000 バイト上限を SSML レベルで気にせんで済む。
 
-const VERSION = "0.7.0";
+const VERSION = "0.8.0";
 
 const KEY_STORAGE = "ssml_mp3_studio_api_key";
 const SETTINGS_STORAGE = "ssml_mp3_studio_settings";
+
+// 効果音 (v0.8.0+)
+// audio/explain.mp3 : 解説直前 (SSML 内の <!-- explain --> マーカーで分割した境目に挿入)
+// audio/transition.mp3 : ブロック間 (各ブロック MP3 の末尾、最後のブロック後は不要)
+const SFX = { explain: null, transition: null };
+const EXPLAIN_MARKER = /<!--\s*explain\s*-->/i;
 
 const $ = (id) => document.getElementById(id);
 
@@ -212,7 +218,43 @@ async function ttsOnce(apiKey, ssml, jaVoice, zhVoice, jaRate, zhRate) {
   return base64ToBytes(data.audioContent);
 }
 
-// ---- MP3 生成(全ブロック順次→連結) ----
+// ---- 効果音ロード (v0.8.0) ----
+// audio/*.mp3 を fetch して Uint8Array としてキャッシュする。
+// 初回 generate() で1回だけ呼ばれる。失敗時は効果音なしで継続。
+async function loadSfx() {
+  if (SFX.explain && SFX.transition) return;
+  try {
+    const [exp, tra] = await Promise.all([
+      fetch("audio/explain.mp3").then((r) => r.arrayBuffer()).then((b) => new Uint8Array(b)),
+      fetch("audio/transition.mp3").then((r) => r.arrayBuffer()).then((b) => new Uint8Array(b)),
+    ]);
+    SFX.explain = exp;
+    SFX.transition = tra;
+  } catch (err) {
+    console.warn("効果音ロード失敗(効果音なしで継続):", err);
+  }
+}
+
+// ---- SSML 内の <!-- explain --> マーカーで分割 ----
+// 「正解 → <!-- explain --> → 解説 → リピート」を
+// 「正解まで」と「解説〜リピート」の 2 つの <speak> に分けて返す。
+// マーカーがなければ単一要素配列で返す(後方互換)。
+function splitOnExplain(ssml) {
+  if (!EXPLAIN_MARKER.test(ssml)) return [ssml];
+  const m = ssml.match(/^([\s\S]*?<speak[^>]*>)([\s\S]*)(<\/speak>[\s\S]*)$/i);
+  if (!m) return [ssml];
+  const [, openTag, inner, closeTail] = m;
+  const parts = inner.split(EXPLAIN_MARKER);
+  if (parts.length < 2) return [ssml];
+  // 各パートを <speak>...</speak> で包み直す
+  return parts.map((p) => `${openTag}${p}${closeTail}`);
+}
+
+// ---- MP3 生成(全ブロック順次→連結 + 効果音挿入) ----
+// 連結構造 (v0.8.0):
+//   ブロック1 前半MP3 → [解説前効果音 explain.mp3] → ブロック1 後半MP3 → [ブロック間効果音 transition.mp3]
+//   → ブロック2 前半MP3 → [explain.mp3] → ブロック2 後半MP3 → [transition.mp3]
+//   → ... → 最後のブロック後半MP3 (transition は付けない)
 $("generate").addEventListener("click", async () => {
   const apiKey = $("apiKey").value.trim();
   if (!apiKey) return setStatus("⚠️ API キーを入力してや", true);
@@ -223,7 +265,6 @@ $("generate").addEventListener("click", async () => {
 
   if (nonEmpty.length === 0) return setStatus("⚠️ SSML を 1 ブロック以上貼ってや", true);
 
-  // 各ブロックを軽くバリデーション
   for (const { ssml, index } of nonEmpty) {
     if (!ssml.includes("<speak")) {
       return setStatus(`⚠️ ブロック ${index}: SSML は <speak>...</speak> で囲んでな`, true);
@@ -238,15 +279,31 @@ $("generate").addEventListener("click", async () => {
   $("generate").disabled = true;
   const mp3Parts = [];
 
+  // 効果音を遅延ロード(初回のみ)
+  setStatus("⏳ 効果音をロード中…");
+  await loadSfx();
+
   try {
     for (let i = 0; i < nonEmpty.length; i++) {
       const { ssml, index } = nonEmpty[i];
-      setStatus(`⏳ ブロック ${index} を生成中… (${i + 1}/${nonEmpty.length})`);
-      try {
-        const bytes = await ttsOnce(apiKey, ssml, jaVoice, zhVoice, jaRate, zhRate);
-        mp3Parts.push(bytes);
-      } catch (err) {
-        return setStatus(`❌ ブロック ${index} エラー: ${err.message}`, true);
+      const parts = splitOnExplain(ssml);
+      for (let p = 0; p < parts.length; p++) {
+        const partLabel = parts.length > 1 ? `${index}-${p + 1}` : `${index}`;
+        setStatus(`⏳ ブロック ${partLabel} を生成中… (${i + 1}/${nonEmpty.length})`);
+        try {
+          const bytes = await ttsOnce(apiKey, parts[p], jaVoice, zhVoice, jaRate, zhRate);
+          mp3Parts.push(bytes);
+        } catch (err) {
+          return setStatus(`❌ ブロック ${partLabel} エラー: ${err.message}`, true);
+        }
+        // 「マーカー位置」の前(=前半パート出力後)に解説前効果音を挟む
+        if (p < parts.length - 1 && SFX.explain) {
+          mp3Parts.push(SFX.explain);
+        }
+      }
+      // ブロック間効果音(最後のブロックの後には付けない)
+      if (i < nonEmpty.length - 1 && SFX.transition) {
+        mp3Parts.push(SFX.transition);
       }
     }
 
@@ -267,7 +324,8 @@ $("generate").addEventListener("click", async () => {
     $("result").classList.remove("hidden");
 
     const sizeKb = Math.round(blob.size / 1024);
-    setStatus(`✅ ${nonEmpty.length} ブロック結合 (${sizeKb} KB) 完了！下で再生 / DL してな`);
+    const sfxNote = (SFX.explain && SFX.transition) ? "(効果音入り)" : "(効果音無し)";
+    setStatus(`✅ ${nonEmpty.length} ブロック結合 ${sfxNote} ${sizeKb} KB 完了！下で再生 / DL してな`);
   } catch (err) {
     setStatus(`❌ 通信エラー: ${err.message}`, true);
   } finally {
