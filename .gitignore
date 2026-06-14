@@ -14,3 +14,4 @@ tmp/
 .env
 *.key
 credentials.json
+.gstack/
