@@ -60,15 +60,35 @@
       <p class="hint">※ SSML 内の <code>&lt;lang xml:lang="zh-…"&gt;</code> で囲まれた中国語部分が、自動で「中国語の声」＋「中国語の速度」に切り替わります。台湾華語を学ぶなら Claude に<strong>繁体字</strong>で SSML を作ってもらうのがおすすめ。</p>
     </section>
 
-    <!-- SSML 入力 -->
+    <!-- SSML 入力(複数ブロック対応) -->
     <section class="card">
       <h2>3. SSML を貼る</h2>
-      <textarea id="ssml" rows="12" spellcheck="false"></textarea>
-      <div class="row">
-        <button id="sampleBtn" class="btn-secondary">サンプル投入</button>
-        <span class="hint" id="byteCount">0 バイト / 約5000バイト上限</span>
+      <p class="hint">
+        ブロックごとに 1 つの <code>&lt;speak&gt;</code> SSML を貼る。<br />
+        複数ブロックを入れると、順次 MP3 を生成して<strong>1 つのファイルに結合</strong>してくれる。
+        各ブロックは 5000 バイト上限で、ブロックを増やせば上限を実質回避できる。
+      </p>
+      <div id="ssml-blocks"></div>
+      <div class="row" style="margin-top: 12px;">
+        <button id="addBlock" class="btn-secondary">＋ ブロックを追加</button>
+        <span class="hint" id="totalByteCount">合計 0 バイト / 1 ブロック</span>
       </div>
     </section>
+
+    <!-- ブロックのテンプレート(JS で複製して使う) -->
+    <template id="ssml-block-template">
+      <div class="ssml-block">
+        <div class="ssml-block-header">
+          <h3>ブロック <span class="ssml-block-num">1</span></h3>
+          <button class="btn-remove-block" type="button" title="このブロックを削除">×</button>
+        </div>
+        <textarea class="ssml-block-textarea" rows="8" spellcheck="false"></textarea>
+        <div class="ssml-block-footer">
+          <button class="btn-secondary btn-sample-block" type="button">サンプル投入</button>
+          <span class="hint ssml-block-bytes">0 バイト</span>
+        </div>
+      </div>
+    </template>
 
     <!-- 生成 -->
     <section class="card">

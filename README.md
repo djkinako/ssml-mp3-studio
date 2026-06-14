@@ -72,11 +72,14 @@ Issue に「対応して」とコメント、または Claude Code で `gh issue
 Claude Code は内部で `prompts/zhtw-v4.md`（プロンプト v4・4ループ検証済み）を読んで、
 段階的中国語化 SSML を各ペア分まとめて生成し、Issue にコードブロックでコメント返信する。
 
-### 3. SSML をコピーしてブラウザで MP3 化
-Issue コメントから SSML をコピー → このアプリ（https://djkinako.github.io/ssml-mp3-studio/）
-に貼って「🔊 MP3 生成」→ ダウンロード。
+### 3. SSML をコピーしてブラウザで MP3 化 (v0.6.0+ 複数ブロック対応)
 
-> 💡 **MP3 生成を自動化していない理由**: vibe coding 流儀(依存ゼロ・ブラウザだけで完結)と、ペアごとに音声を耳で確認してから次へ進めるワークフローを優先したため。
+Issue コメントから **ペアごとの `<speak>` SSML** をコピー →
+このアプリ（https://djkinako.github.io/ssml-mp3-studio/）の **「+ ブロックを追加」** で
+ペア数分のブロックを用意 → **各ブロックに 1 つずつ SSML を貼り付け** →
+「🔊 MP3 生成」を押すと、**全ブロックが順次 TTS API で MP3 化され、1 ファイルに結合**されてダウンロードできる。
+
+> 💡 **複数SSMLを1MP3にする仕組み (v0.6.0)**: 各ブロックを順次 Google TTS に投げて MP3 (バイト列) を取得 → `Uint8Array` で単純連結 → 1 つの Blob として DL。MP3 はフレーム独立形式やから連結で動く(ffmpeg・Web Audio API 不要)。Google TTS の 5000 バイト/リクエスト上限を、ブロック分割で実質的に回避できる。
 
 ### SSML プロンプトの中身
 `prompts/zhtw-v4.md` を参照。主要ルール:
