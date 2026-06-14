@@ -107,13 +107,13 @@ code { background: #eef0f2; padding: 1px 5px; border-radius: 4px; font-size: 0.8
 #player { width: 100%; }
 .hidden { display: none !important; }
 
-/* ---- 複数 SSML ブロック (v0.6.0) ---- */
+/* ---- 複数 SSML ブロック (v0.6.0 / v1.0.1 シンプル化) ---- */
+/* 1 ブロック時は装飾ゼロで textarea を直接見せる、2 つ以上で初めてブロック化UIが出る */
 .ssml-block {
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
   margin-top: 12px;
-  background: #fafbfc;
+}
+.ssml-block:first-child {
+  margin-top: 0;
 }
 .ssml-block-header {
   display: flex;
@@ -146,10 +146,6 @@ code { background: #eef0f2; padding: 1px 5px; border-radius: 4px; font-size: 0.8
   color: #c0392b;
   border-color: #c0392b;
 }
-.btn-remove-block:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
 .ssml-block-textarea {
   min-height: 140px;
 }
@@ -164,4 +160,32 @@ code { background: #eef0f2; padding: 1px 5px; border-radius: 4px; font-size: 0.8
   font-size: 0.85rem;
 }
 .ssml-block-bytes { margin: 0; }
+
+/* 1 ブロックだけの時は「ブロック1」ヘッダーを非表示 → 元のシンプル UI に近づく */
+#ssml-blocks:has(.ssml-block:only-child) .ssml-block-header {
+  display: none;
+}
+/* 1 ブロックだけの時は「合計 X バイト」表示も非表示 */
+#ssml-blocks:has(.ssml-block:only-child) ~ .row #totalByteCount {
+  display: none;
+}
+/* 複数ブロック時はブロック間の罫線で視覚区切り */
+#ssml-blocks:not(:has(.ssml-block:only-child)) .ssml-block + .ssml-block {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border);
+}
+
+/* 「+ ブロックを追加」を控えめなテキストリンク風に */
+#addBlock {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+#addBlock:hover {
+  background: #eef0f2;
+  color: var(--text);
+}
 
