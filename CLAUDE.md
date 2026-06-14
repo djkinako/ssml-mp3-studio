@@ -21,7 +21,7 @@ SSML テキストを Google Cloud Text-to-Speech API に投げて、日中混在
 3. ✅ GitHub Pages デプロイ済み — https://djkinako.github.io/ssml-mp3-studio/ (v0.3.0)
 4. ✅ 設定の永続化(声・速度4項目) + バージョン表示 + CHANGELOG (v0.3.0)
 5. ✅ **Issue 起点 SSML 生成ワークフロー** — `prompts/zhtw-v4.md` で台湾華語学習教材を生成 (v0.4.0)
-6. ✅ Claude Design で UI 刷新「ノート手書きトーン v2」 (v0.9.0)
+6. 🔁 Claude Design で UI 刷新「ノート手書きトーン v2」 を v0.9.0 で試作 → 実機判断「シンプル方が良い」で v1.0.0 にロールバック(コミット c356fb9 に保管)
 7. ⬜ （someday）バッチ生成・複数SSML一括ZIP DL・リピート機能 (SPEC §9)
 
 ## ファイル構成
