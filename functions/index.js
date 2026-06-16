@@ -75,6 +75,7 @@ function todayJst() {
 }
 
 // <speak> の中身を抜き出して <lang> を <voice>+<prosody> に書き換える
+// 速度が等倍(100%)の場合は <prosody> を省略してバイト数節約(v3.1.2)
 function buildSsml(raw, zhVoice, jaRate, zhRate) {
   const m = raw.match(/<speak[^>]*>([\s\S]*)<\/speak>/i);
   let inner = m ? m[1] : raw;
@@ -83,9 +84,13 @@ function buildSsml(raw, zhVoice, jaRate, zhRate) {
   const jaPct = Math.round(jaRate * 100);
   inner = inner.replace(
     /<lang\s+xml:lang\s*=\s*["'](?:zh|cmn)[^"']*["']\s*>([\s\S]*?)<\/lang>/gi,
-    (_, txt) => `<voice name="${zhVoice}"><prosody rate="${zhPct}%">${txt}</prosody></voice>`,
+    (_, txt) => zhPct === 100
+      ? `<voice name="${zhVoice}">${txt}</voice>`
+      : `<voice name="${zhVoice}"><prosody rate="${zhPct}%">${txt}</prosody></voice>`,
   );
-  return `<speak><prosody rate="${jaPct}%">${inner}</prosody></speak>`;
+  return jaPct === 100
+    ? `<speak>${inner}</speak>`
+    : `<speak><prosody rate="${jaPct}%">${inner}</prosody></speak>`;
 }
 
 function langCodeFromVoice(voiceName) {

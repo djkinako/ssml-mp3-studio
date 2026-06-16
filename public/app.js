@@ -7,7 +7,7 @@
 // - 1 ユーザー / 1 日 / 4 回までのレート制限(IP 単位、サーバー側で実装)
 // - 残量(あと N 回)を画面に表示
 
-const VERSION = "3.1.1";
+const VERSION = "3.1.2";
 
 const SETTINGS_STORAGE = "ssml_mp3_studio_public_settings";
 const USAGE_STORAGE = "ssml_mp3_studio_public_usage"; // { date: 'YYYY-MM-DD', remaining: N }
@@ -74,15 +74,51 @@ $("sampleBtn").addEventListener("click", () => {
   updateByteCount();
 });
 
+// buildSsml と同等のバイト数を見積もる(<lang> → <voice>+<prosody> 変換後のサイズ)
+// 速度 1.0 のときは <prosody> 省略最適化(v3.1.2)、Functions と同じロジック
+function estimateBuiltSize(raw) {
+  if (!raw) return 0;
+  const m = raw.match(/<speak[^>]*>([\s\S]*)<\/speak>/i);
+  let inner = m ? m[1] : raw;
+  const zhVoice = $("zhVoice").value;
+  const jaRate = parseFloat($("jaRate").value);
+  const zhRate = parseFloat($("zhRate").value);
+  const zhRelative = jaRate ? zhRate / jaRate : zhRate;
+  const zhPct = Math.round(zhRelative * 100);
+  const jaPct = Math.round(jaRate * 100);
+  inner = inner.replace(
+    /<lang\s+xml:lang\s*=\s*["'](?:zh|cmn)[^"']*["']\s*>([\s\S]*?)<\/lang>/gi,
+    (_, txt) => zhPct === 100
+      ? `<voice name="${zhVoice}">${txt}</voice>`
+      : `<voice name="${zhVoice}"><prosody rate="${zhPct}%">${txt}</prosody></voice>`,
+  );
+  const built = jaPct === 100
+    ? `<speak>${inner}</speak>`
+    : `<speak><prosody rate="${jaPct}%">${inner}</prosody></speak>`;
+  return new TextEncoder().encode(built).length;
+}
+
 function updateByteCount() {
-  const bytes = new TextEncoder().encode($("ssml").value).length;
+  const raw = $("ssml").value;
+  const bytes = new TextEncoder().encode(raw).length;
+  const built = estimateBuiltSize(raw);
   const el = $("byteCount");
-  el.textContent = window.I18N
-    ? window.I18N.t("ssml.byte_count_template", { bytes })
-    : `${bytes} バイト / 約5000バイト上限`;
-  el.style.color = bytes > 5000 ? "#c0392b" : "";
+  // 元サイズ + 変換後サイズ両方を表示
+  const lang = window.I18N ? window.I18N.currentLang : "ja";
+  const label = lang === "tw"
+    ? `${bytes} bytes(送信時 ${built}, 上限 5000)`
+    : `${bytes} バイト(送信時 ${built}, 上限 5000)`;
+  el.textContent = label;
+  // 変換後サイズで判定(これが実際の Google TTS 制限)
+  el.style.color = built > 5000 ? "#c0392b" : "";
 }
 $("ssml").addEventListener("input", updateByteCount);
+// 声・速度変更時もバイト計算は変わるので再計算
+["jaVoice", "zhVoice", "jaRate", "zhRate"].forEach((id) => {
+  const el = $(id);
+  if (el) el.addEventListener("change", updateByteCount);
+  if (el && el.type === "range") el.addEventListener("input", updateByteCount);
+});
 
 // 残量表示(localStorage キャッシュ)
 function todayJst() {
