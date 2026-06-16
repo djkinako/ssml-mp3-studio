@@ -10,15 +10,18 @@
 <body>
   <main class="container">
     <header>
-      <div class="lang-toggle" role="group" aria-label="言語選択">
-        <button id="langJa" class="lang-btn" type="button" aria-pressed="true">
-          <span data-i18n="lang.ja_label">🇯🇵 JA</span>
-        </button>
-        <button id="langTw" class="lang-btn" type="button" aria-pressed="false">
-          <span data-i18n="lang.tw_label">🇹🇼 繁</span>
-        </button>
+      <div class="header-actions">
+        <button id="infoBtn" class="info-btn" type="button" data-i18n-attr="aria-label" data-i18n="info.button_aria" aria-label="情報を開く">ⓘ</button>
+        <div class="lang-toggle" role="group" aria-label="言語選択">
+          <button id="langJa" class="lang-btn" type="button" aria-pressed="true">
+            <span data-i18n="lang.ja_label">🇯🇵 JA</span>
+          </button>
+          <button id="langTw" class="lang-btn" type="button" aria-pressed="false">
+            <span data-i18n="lang.tw_label">🇹🇼 繁</span>
+          </button>
+        </div>
       </div>
-      <h1>🔊 <span data-i18n="header.title">SSML MP3 Studio</span> <span class="beta" data-i18n="header.beta">β</span> <span id="version" class="version"></span></h1>
+      <h1>🔊 <span data-i18n="header.title">SSML MP3 Studio</span> <span class="beta" data-i18n="header.beta">β</span></h1>
       <p class="subtitle" data-i18n="header.subtitle">SSML を貼って、日中混在の学習音声を MP3 で書き出す（試験公開版）</p>
     </header>
 
@@ -67,6 +70,19 @@
       <p class="hint" data-i18n="voice.hint">※ SSML 内の <code>&lt;lang xml:lang="zh-…"&gt;</code> で囲まれた中国語部分が、自動で「中国語の声」＋「中国語の速度」に切り替わります。</p>
     </section>
 
+    <!-- プロンプトコピーカード(上級者向け) -->
+    <section class="card prompt-card">
+      <details>
+        <summary data-i18n="prompt.title">📋 SSML を自分で作る(上級者向け)</summary>
+        <p class="hint" data-i18n="prompt.intro">ChatGPT や Claude にこのプロンプトを貼り付けてから、日本語と中国語の例文ペアを渡したら、段階的中国語化 SSML を作ってくれるで。出てきた SSML を上の欄に貼って MP3 化してな。</p>
+        <textarea id="promptText" class="prompt-textarea" readonly rows="6"></textarea>
+        <div class="row">
+          <button id="copyPromptBtn" class="btn-secondary" type="button" data-i18n="prompt.copy_btn">プロンプトをコピー</button>
+          <span class="hint" id="copyStatus"></span>
+        </div>
+      </details>
+    </section>
+
     <!-- SSML 入力 -->
     <section class="card">
       <h2 data-i18n="ssml.section_title">2. SSML を貼る</h2>
@@ -95,6 +111,33 @@
       <p data-i18n="footer.copy">© SSML MP3 Studio β</p>
     </footer>
   </main>
+
+  <!-- ⓘ 情報モーダル -->
+  <div id="infoModal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-dialog" role="document">
+      <button id="modalClose" class="modal-close" type="button" data-i18n-attr="aria-label" data-i18n="modal.close_label" aria-label="閉じる">✕</button>
+      <h2 id="modalTitle" class="visually-hidden">Information</h2>
+
+      <!-- タブバー -->
+      <div class="tab-bar" role="tablist">
+        <button class="tab-btn active" type="button" role="tab" data-tab="changelog" data-i18n="modal.tab_changelog">更新履歴</button>
+        <button class="tab-btn" type="button" role="tab" data-tab="privacy" data-i18n="modal.tab_privacy">プライバシー</button>
+        <button class="tab-btn" type="button" role="tab" data-tab="terms" data-i18n="modal.tab_terms">利用上の注意</button>
+      </div>
+
+      <!-- タブコンテンツ -->
+      <div class="tab-content active" data-tab-panel="changelog">
+        <p class="version-line" id="modalVersionLine"></p>
+        <div data-i18n="about.changelog_body" data-i18n-html="true"></div>
+      </div>
+      <div class="tab-content" data-tab-panel="privacy">
+        <div data-i18n="about.privacy_body" data-i18n-html="true"></div>
+      </div>
+      <div class="tab-content" data-tab-panel="terms">
+        <div data-i18n="about.terms_body" data-i18n-html="true"></div>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

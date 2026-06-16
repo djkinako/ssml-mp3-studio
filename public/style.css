@@ -183,11 +183,202 @@ a:hover { color: var(--primary-hover); }
   outline-offset: 2px;
 }
 
+/* ============================================
+   .header-actions — ⓘ ボタン + 国旗トグル(v2.2.0)
+   ============================================ */
+.header-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-actions .lang-toggle {
+  position: static;
+}
+
+.info-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d0d4d8;
+  background: #fff;
+  border-radius: 50%;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  color: var(--text);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.info-btn:hover {
+  background: #f0f2f4;
+}
+.info-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 @media (max-width: 560px) {
   header { padding-top: 8px; }
-  .lang-toggle {
+  .header-actions {
     position: static;
     justify-content: center;
     margin-top: 12px;
   }
+}
+
+/* ============================================
+   ⓘ 情報モーダル (v2.2.0)
+   ============================================ */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: modal-fade 0.15s ease;
+}
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.modal-dialog {
+  background: var(--card);
+  border-radius: 12px;
+  max-width: 640px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  padding: 20px 24px 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 1.1rem;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: 50%;
+}
+.modal-close:hover {
+  background: #eef0f2;
+  color: var(--text);
+}
+.modal-close:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin: 0 -8px 16px;
+  padding: 0 8px;
+}
+.tab-btn {
+  border: none;
+  background: transparent;
+  padding: 10px 14px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+  font-weight: 600;
+}
+.tab-btn:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.tab-content {
+  display: none;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.tab-content.active { display: block; }
+.tab-content p { margin: 0 0 12px; }
+.tab-content ul { padding-left: 20px; margin: 0 0 12px; }
+.tab-content li { margin-bottom: 4px; }
+.tab-content strong { color: var(--text); }
+
+.version-line {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0 0 12px;
+  padding: 8px 12px;
+  background: #f5f6f8;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+/* ============================================
+   プロンプトコピーカード (v2.2.0)
+   ============================================ */
+.prompt-card details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  padding: 4px 0;
+  user-select: none;
+  list-style: none;
+}
+.prompt-card details summary::-webkit-details-marker { display: none; }
+.prompt-card details summary::before {
+  content: "▶";
+  display: inline-block;
+  font-size: 0.7rem;
+  margin-right: 8px;
+  transition: transform 0.15s ease;
+  color: var(--muted);
+}
+.prompt-card details[open] summary::before {
+  transform: rotate(90deg);
+}
+.prompt-card details > * + * {
+  margin-top: 10px;
+}
+.prompt-textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: "SF Mono", Menlo, monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  background: #fafbfc;
+  color: var(--text);
+  resize: vertical;
+  min-height: 120px;
 }

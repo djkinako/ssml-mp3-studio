@@ -7,7 +7,7 @@
 // - 1 ユーザー / 1 日 / 4 回までのレート制限(IP 単位、サーバー側で実装)
 // - 残量(あと N 回)を画面に表示
 
-const VERSION = "2.1.0";
+const VERSION = "2.2.0";
 
 const SETTINGS_STORAGE = "ssml_mp3_studio_public_settings";
 const USAGE_STORAGE = "ssml_mp3_studio_public_usage"; // { date: 'YYYY-MM-DD', remaining: N }
@@ -215,16 +215,101 @@ function timestamp() {
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
 
-// 言語切替時に動的テキスト(byteCount / rateInfo)を再描画
+// 言語切替時に動的テキスト(byteCount / rateInfo / version label)を再描画
 window.addEventListener("langchange", () => {
   updateByteCount();
   if (lastRateInfo) {
     renderRateInfo(lastRateInfo.remaining, lastRateInfo.dailyLimit);
   }
+  updateModalVersion();
+});
+
+// ⓘ モーダル制御
+function updateModalVersion() {
+  const el = $("modalVersionLine");
+  if (!el) return;
+  el.textContent = window.I18N
+    ? window.I18N.t("version.label_template", { version: VERSION })
+    : `現在のバージョン: v${VERSION}`;
+}
+
+function openModal() {
+  const m = $("infoModal");
+  m.classList.remove("hidden");
+  updateModalVersion();
+  // 開いた瞬間に閉じるボタンへフォーカス
+  setTimeout(() => $("modalClose").focus(), 0);
+  document.addEventListener("keydown", onEscClose);
+}
+function closeModal() {
+  $("infoModal").classList.add("hidden");
+  document.removeEventListener("keydown", onEscClose);
+}
+function onEscClose(e) {
+  if (e.key === "Escape") closeModal();
+}
+
+$("infoBtn").addEventListener("click", openModal);
+$("modalClose").addEventListener("click", closeModal);
+$("infoModal").addEventListener("click", (e) => {
+  // 背景タップで閉じる(ダイアログ本体は伝播停止)
+  if (e.target === e.currentTarget) closeModal();
+});
+
+// タブ切替
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tab = btn.getAttribute("data-tab");
+    document.querySelectorAll(".tab-btn").forEach((b) => {
+      b.classList.toggle("active", b === btn);
+    });
+    document.querySelectorAll(".tab-content").forEach((c) => {
+      c.classList.toggle("active", c.getAttribute("data-tab-panel") === tab);
+    });
+  });
+});
+
+// プロンプトコピー機能(<details> 展開時に lazy load)
+let promptCache = null;
+async function loadPrompt() {
+  if (promptCache) return promptCache;
+  const res = await fetch("/zhtw-v4.md");
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  promptCache = await res.text();
+  return promptCache;
+}
+
+document.querySelector(".prompt-card details").addEventListener("toggle", async (e) => {
+  if (!e.target.open) return;
+  const ta = $("promptText");
+  if (ta.value) return;
+  try {
+    ta.value = "Loading...";
+    ta.value = await loadPrompt();
+  } catch (err) {
+    ta.value = `Failed to load: ${err.message}`;
+  }
+});
+
+$("copyPromptBtn").addEventListener("click", async () => {
+  const ta = $("promptText");
+  if (!ta.value || ta.value === "Loading...") {
+    ta.value = await loadPrompt();
+  }
+  try {
+    await navigator.clipboard.writeText(ta.value);
+    $("copyStatus").textContent = t("prompt.copy_success");
+    $("copyStatus").style.color = "#2d7d46";
+    setTimeout(() => {
+      $("copyStatus").textContent = "";
+    }, 2500);
+  } catch (err) {
+    $("copyStatus").textContent = t("prompt.copy_failed");
+    $("copyStatus").style.color = "#c0392b";
+  }
 });
 
 // 初期化
-$("version").textContent = `v${VERSION}`;
 loadSettings();
 updateByteCount();
 loadUsageCache();
