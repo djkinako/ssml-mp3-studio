@@ -7,7 +7,7 @@
 // - 1 ユーザー / 1 日 / 4 回までのレート制限(IP 単位、サーバー側で実装)
 // - 残量(あと N 回)を画面に表示
 
-const VERSION = "3.1.5";
+const VERSION = "3.2.0";
 
 // 安全マージン込みの SSML サイズ上限(プロンプトと同じ値)
 // Google TTS の生上限は 5000 だが、buildSsml() の <lang>→<voice> 変換で膨らむため
@@ -22,13 +22,27 @@ const TTS_ENDPOINT = "/api/tts";
 
 const $ = (id) => document.getElementById(id);
 
-const SAMPLE_SSML = `<speak>
+// 日本人向け(地の文 = 日本語)サンプル
+const SAMPLE_SSML_JA = `<speak>
   今日の表現です。<break time="500ms"/>
   毎日コーヒーを飲むのが習慣です。<break time="700ms"/>
   中国語では、<lang xml:lang="zh-TW">我每天喝咖啡是習慣</lang>。<break time="700ms"/>
   ポイントは <lang xml:lang="zh-TW">習慣</lang> という単語です。<break time="500ms"/>
   もう一度。<lang xml:lang="zh-TW">我每天喝咖啡是習慣</lang>。
 </speak>`;
+
+// 台湾人向け(地の文 = 中国語繁体字)サンプル
+const SAMPLE_SSML_ZH = `<speak>
+  今天的表達。<break time="500ms"/>
+  每天喝咖啡是我的習慣。<break time="700ms"/>
+  用日語就是、<lang xml:lang="ja-JP">毎日コーヒーを飲むのが習慣です</lang>。<break time="700ms"/>
+  重點是 <lang xml:lang="ja-JP">習慣</lang> 這個詞。<break time="500ms"/>
+  再聽一次。<lang xml:lang="ja-JP">毎日コーヒーを飲むのが習慣です</lang>。
+</speak>`;
+
+function currentSample() {
+  return window.I18N && window.I18N.currentLang === "tw" ? SAMPLE_SSML_ZH : SAMPLE_SSML_JA;
+}
 
 // 設定永続化
 function loadSettings() {
@@ -73,21 +87,50 @@ $("zhRate").addEventListener("input", (e) => {
 $("jaVoice").addEventListener("change", saveSettings);
 $("zhVoice").addEventListener("change", saveSettings);
 
-// サンプル投入 + バイト数
+// サンプル投入 + バイト数(UI 言語に応じて中/日サンプル切替)
 $("sampleBtn").addEventListener("click", () => {
-  $("ssml").value = SAMPLE_SSML;
+  $("ssml").value = currentSample();
   updateByteCount();
 });
 
+// 現在の UI 言語に応じた SSML ベース言語(地の文の言語) を返す
+// "tw" → "zh" (台湾人向け: 中国語ベース、<lang ja-*> を日本語声に変換)
+// "ja" → "ja" (日本人向け: 日本語ベース、<lang zh|cmn-*> を中国語声に変換)
+function getBaseLang() {
+  return window.I18N && window.I18N.currentLang === "tw" ? "zh" : "ja";
+}
+
 // buildSsml と同等のバイト数を見積もる(<lang> → <voice>+<prosody> 変換後のサイズ)
 // 速度 1.0 のときは <prosody> 省略最適化(v3.1.2)、Functions と同じロジック
+// v3.2.0: baseLang に応じて変換方向を切り替え
 function estimateBuiltSize(raw) {
   if (!raw) return 0;
   const m = raw.match(/<speak[^>]*>([\s\S]*)<\/speak>/i);
   let inner = m ? m[1] : raw;
+  const jaVoice = $("jaVoice").value;
   const zhVoice = $("zhVoice").value;
   const jaRate = parseFloat($("jaRate").value);
   const zhRate = parseFloat($("zhRate").value);
+  const baseLang = getBaseLang();
+
+  if (baseLang === "zh") {
+    // 中国語ベース: ベース速度=zhRate、<lang ja-*> を日本語声に変換
+    const jaRelative = zhRate ? jaRate / zhRate : jaRate;
+    const jaPct = Math.round(jaRelative * 100);
+    const zhPct = Math.round(zhRate * 100);
+    inner = inner.replace(
+      /<lang\s+xml:lang\s*=\s*["']ja[^"']*["']\s*>([\s\S]*?)<\/lang>/gi,
+      (_, txt) => jaPct === 100
+        ? `<voice name="${jaVoice}">${txt}</voice>`
+        : `<voice name="${jaVoice}"><prosody rate="${jaPct}%">${txt}</prosody></voice>`,
+    );
+    const built = zhPct === 100
+      ? `<speak>${inner}</speak>`
+      : `<speak><prosody rate="${zhPct}%">${inner}</prosody></speak>`;
+    return new TextEncoder().encode(built).length;
+  }
+
+  // 日本語ベース(既存ロジック): ベース速度=jaRate、<lang zh|cmn-*> を中国語声に変換
   const zhRelative = jaRate ? zhRate / jaRate : zhRate;
   const zhPct = Math.round(zhRelative * 100);
   const jaPct = Math.round(jaRate * 100);
@@ -195,6 +238,7 @@ $("generate").addEventListener("click", async () => {
     zhVoice: $("zhVoice").value,
     jaRate: parseFloat($("jaRate").value),
     zhRate: parseFloat($("zhRate").value),
+    baseLang: getBaseLang(), // v3.2.0: UI 言語に応じて "ja" or "zh"
   };
 
   setStatus(t("status.generating"));

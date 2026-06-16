@@ -76,9 +76,28 @@ function todayJst() {
 
 // <speak> の中身を抜き出して <lang> を <voice>+<prosody> に書き換える
 // 速度が等倍(100%)の場合は <prosody> を省略してバイト数節約(v3.1.2)
-function buildSsml(raw, zhVoice, jaRate, zhRate) {
+// v3.2.0: baseLang で変換方向を切替("ja"=日本人向け / "zh"=台湾人向け)
+function buildSsml(raw, jaVoice, zhVoice, jaRate, zhRate, baseLang) {
   const m = raw.match(/<speak[^>]*>([\s\S]*)<\/speak>/i);
   let inner = m ? m[1] : raw;
+
+  if (baseLang === "zh") {
+    // 中国語ベース: 全体は zhVoice(リクエストで指定)、<lang ja-*> を日本語声に置換
+    const jaRelative = zhRate ? jaRate / zhRate : jaRate;
+    const jaPct = Math.round(jaRelative * 100);
+    const zhPct = Math.round(zhRate * 100);
+    inner = inner.replace(
+      /<lang\s+xml:lang\s*=\s*["']ja[^"']*["']\s*>([\s\S]*?)<\/lang>/gi,
+      (_, txt) => jaPct === 100
+        ? `<voice name="${jaVoice}">${txt}</voice>`
+        : `<voice name="${jaVoice}"><prosody rate="${jaPct}%">${txt}</prosody></voice>`,
+    );
+    return zhPct === 100
+      ? `<speak>${inner}</speak>`
+      : `<speak><prosody rate="${zhPct}%">${inner}</prosody></speak>`;
+  }
+
+  // 日本語ベース(既存): 全体は jaVoice、<lang zh|cmn-*> を中国語声に置換
   const zhRelative = jaRate ? zhRate / jaRate : zhRate;
   const zhPct = Math.round(zhRelative * 100);
   const jaPct = Math.round(jaRate * 100);
@@ -127,7 +146,7 @@ exports.tts = onRequest(
     }
 
     try {
-      const { ssml, jaVoice, zhVoice, jaRate, zhRate } = req.body || {};
+      const { ssml, jaVoice, zhVoice, jaRate, zhRate, baseLang } = req.body || {};
 
       // バリデーション
       if (!ssml || typeof ssml !== "string") {
@@ -147,6 +166,10 @@ exports.tts = onRequest(
       if (!(jaR >= 0.5 && jaR <= 1.5) || !(zhR >= 0.5 && zhR <= 1.5)) {
         return res.status(400).json({ error: "速度は 0.5〜1.5 の範囲で指定してな" });
       }
+      // v3.2.0: baseLang 未指定なら従来通り "ja"(後方互換)
+      const base = baseLang === "zh" ? "zh" : "ja";
+      // ベース言語に応じたメイン声(<speak> 直下を読む声)
+      const baseVoice = base === "zh" ? zhVoice : jaVoice;
 
       // レート制限チェック(Firestore トランザクションでアトミック)
       const ip = getClientIp(req);
@@ -185,7 +208,7 @@ exports.tts = onRequest(
       const parts = splitOnExplain(ssml);
 
       async function ttsOnce(partSsml) {
-        const builtSsml = buildSsml(partSsml, zhVoice, jaR, zhR);
+        const builtSsml = buildSsml(partSsml, jaVoice, zhVoice, jaR, zhR, base);
         const ttsRes = await fetch(
           `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`,
           {
@@ -193,7 +216,7 @@ exports.tts = onRequest(
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               input: { ssml: builtSsml },
-              voice: { languageCode: langCodeFromVoice(jaVoice), name: jaVoice },
+              voice: { languageCode: langCodeFromVoice(baseVoice), name: baseVoice },
               audioConfig: {
                 audioEncoding: "MP3",
                 speakingRate: 1.0,
