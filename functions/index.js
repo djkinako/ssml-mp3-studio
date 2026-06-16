@@ -12,9 +12,27 @@
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const fs = require("fs");
+const path = require("path");
 
 admin.initializeApp();
 const db = admin.firestore();
+
+// 解説前効果音(audio/explain.mp3 を Functions 起動時に1回だけ読み込み)
+// 24kHz mono 64kbps、Google TTS 出力と完全一致フォーマット
+const EXPLAIN_SFX = fs.readFileSync(path.join(__dirname, "audio", "explain.mp3"));
+
+// <!-- explain --> マーカーで SSML を分割
+const EXPLAIN_MARKER = /<!--\s*explain\s*-->/i;
+function splitOnExplain(ssml) {
+  if (!EXPLAIN_MARKER.test(ssml)) return [ssml];
+  const m = ssml.match(/^([\s\S]*?<speak[^>]*>)([\s\S]*)(<\/speak>[\s\S]*)$/i);
+  if (!m) return [ssml];
+  const [, openTag, inner, closeTail] = m;
+  const parts = inner.split(EXPLAIN_MARKER);
+  if (parts.length < 2) return [ssml];
+  return parts.map((p) => `${openTag}${p}${closeTail}`);
+}
 
 // Secret として登録した Google TTS API キー
 // firebase functions:secrets:set GOOGLE_TTS_API_KEY でセット済み
@@ -155,42 +173,64 @@ exports.tts = onRequest(
         });
       }
 
-      // Google TTS 呼び出し
-      const builtSsml = buildSsml(ssml, zhVoice, jaR, zhR);
+      // SSML を <!-- explain --> マーカーで分割
+      // - マーカー無し: 1 回 TTS でそのまま返す
+      // - マーカー有り: 各パートを TTS して、間に explain.mp3 を挟んで連結
       const apiKey = GOOGLE_TTS_API_KEY.value();
-      const ttsRes = await fetch(
-        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            input: { ssml: builtSsml },
-            voice: { languageCode: langCodeFromVoice(jaVoice), name: jaVoice },
-            audioConfig: {
-              audioEncoding: "MP3",
-              speakingRate: 1.0,
-              sampleRateHertz: 24000,
-            },
-          }),
-        },
-      );
+      const parts = splitOnExplain(ssml);
 
-      const ttsData = await ttsRes.json();
-      if (!ttsRes.ok) {
-        const msg = ttsData?.error?.message || `Google TTS HTTP ${ttsRes.status}`;
-        console.error("Google TTS error:", msg);
+      async function ttsOnce(partSsml) {
+        const builtSsml = buildSsml(partSsml, zhVoice, jaR, zhR);
+        const ttsRes = await fetch(
+          `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              input: { ssml: builtSsml },
+              voice: { languageCode: langCodeFromVoice(jaVoice), name: jaVoice },
+              audioConfig: {
+                audioEncoding: "MP3",
+                speakingRate: 1.0,
+                sampleRateHertz: 24000,
+              },
+            }),
+          },
+        );
+        const ttsData = await ttsRes.json();
+        if (!ttsRes.ok) {
+          const msg = ttsData?.error?.message || `Google TTS HTTP ${ttsRes.status}`;
+          throw new Error(msg);
+        }
+        return Buffer.from(ttsData.audioContent, "base64");
+      }
+
+      let mergedAudio;
+      try {
+        const buffers = [];
+        for (let i = 0; i < parts.length; i++) {
+          buffers.push(await ttsOnce(parts[i]));
+          // パート間(=マーカー位置)に explain.mp3 を挟む
+          if (i < parts.length - 1) {
+            buffers.push(EXPLAIN_SFX);
+          }
+        }
+        mergedAudio = Buffer.concat(buffers);
+      } catch (err) {
+        console.error("Google TTS error:", err.message);
         // 失敗時はカウンタをデクリメント(課金されてないのでユーザー保護)
         await docRef.set({
           count: admin.firestore.FieldValue.increment(-1),
         }, { merge: true });
-        return res.status(502).json({ error: `音声合成エラー: ${msg}` });
+        return res.status(502).json({ error: `音声合成エラー: ${err.message}` });
       }
 
       return res.status(200).json({
-        audioContent: ttsData.audioContent,
+        audioContent: mergedAudio.toString("base64"),
         dailyLimit: DAILY_LIMIT,
         used: count,
         remaining: DAILY_LIMIT - count,
+        sfxApplied: parts.length > 1,
       });
     } catch (err) {
       console.error("Function error:", err);

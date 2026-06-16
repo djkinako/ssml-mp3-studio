@@ -8,6 +8,21 @@
 
 ---
 
+## [3.1.1] - 2026-06-16
+
+### 修正
+- 🐛 **解説前の効果音(explain.mp3)が公開版で鳴らないバグを修正**
+  - 原因: 公開版の Functions に `<!-- explain -->` マーカー分割ロジックが**未実装**(個人版にはあったが、Firebase バックエンドへの移植漏れ)
+  - 修正: `functions/index.js` に下記を追加
+    - `functions/audio/explain.mp3` 同梱(個人版 audio/explain.mp3 と同一、24kHz mono 64kbps)
+    - `splitOnExplain()` 関数追加(マーカー位置で SSML を分割)
+    - TTS リクエストロジック改修: マーカーがあれば 2 回 TTS → 間に explain.mp3 を Buffer.concat で挟む
+  - **レート制限カウンタは 1 リクエスト 1 カウント維持**(2 回 TTS 呼出は内部処理、ユーザー視点では 1 回)
+  - レスポンスに `sfxApplied: boolean` を追加(効果音適用済み判定用、デバッグ用途)
+- 🏷️ VERSION 3.1.0 → 3.1.1(PATCH、バグ修正)
+
+---
+
 ## [3.1.0] - 2026-06-16
 
 ### 追加
