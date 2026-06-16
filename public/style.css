@@ -38,6 +38,18 @@ header h1 { margin: 0 0 4px; font-size: 1.6rem; }
   vertical-align: middle;
   margin-left: 4px;
 }
+.beta {
+  display: inline-block;
+  background: #e67e22;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  vertical-align: middle;
+  margin-left: 4px;
+  letter-spacing: 0.05em;
+}
 
 .card {
   background: var(--card);

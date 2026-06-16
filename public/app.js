@@ -7,7 +7,7 @@
 // - 1 ユーザー / 1 日 / 4 回までのレート制限(IP 単位、サーバー側で実装)
 // - 残量(あと N 回)を画面に表示
 
-const VERSION = "2.0.0";
+const VERSION = "2.0.1";
 
 const SETTINGS_STORAGE = "ssml_mp3_studio_public_settings";
 const USAGE_STORAGE = "ssml_mp3_studio_public_usage"; // { date: 'YYYY-MM-DD', remaining: N }

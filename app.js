@@ -14,7 +14,7 @@
 //   バイナリ連結で動く(ffmpeg / Web Audio API 不要)。
 //   これで 5000 バイト上限を SSML レベルで気にせんで済む。
 
-const VERSION = "2.0.0";
+const VERSION = "2.0.1";
 
 const KEY_STORAGE = "ssml_mp3_studio_api_key";
 const SETTINGS_STORAGE = "ssml_mp3_studio_settings";
