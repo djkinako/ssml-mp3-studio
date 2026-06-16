@@ -8,6 +8,38 @@
 
 ---
 
+## [2.1.0] - 2026-06-16
+
+### 追加(試験公開版 v3.0.0 Phase 1: 土台 i18n)
+- 🌐 **日本語 ⇔ 台湾華語の UI 切替**機能を実装(国旗トグルボタン)
+  - 🇯🇵 JA / 🇹🇼 繁 ボタンをヘッダー右上に配置(スマホでは中央下)
+  - クリックで即座に全 UI 文言が切替(リロード不要)
+  - 選択言語は `localStorage` に永続化、リロード後も維持
+  - 初回訪問時は `navigator.language` から推測(zh*/tw* で台湾優先)
+- 📋 **`public/i18n.js` 新設**(辞書 + コアロジック、191行・依存ゼロ)
+  - `window.I18N.t(key, replacements)` で文言取得
+  - `applyI18n()` で `[data-i18n]` 属性付き要素を一括書換
+  - `data-i18n-attr="placeholder"` 形式で属性置換にも対応
+  - `setLang(lang)` 時に `langchange` カスタムイベント発火
+- 🏷️ **辞書 30 キー両言語完備**(header/notice/voice/ssml/status/rate/result/footer 系)
+  - ja: 関西弁ギャルヤンキー口調(きなこペルソナ維持)
+  - tw: 繁体字台湾華語、丁寧寄りで台灣國語自然口語
+- 🔄 **動的メッセージも i18n 化**: `byteCount` / `rateInfo` / `status.*` 系のテンプレ展開を `I18N.t()` 経由に
+  - 言語切替時に `langchange` イベントを listen して再描画
+- 🏷️ VERSION 2.0.1 → 2.1.0(MINOR、新機能)
+
+### 内部実装
+- Workflow 3並列(i18n.js コア / index.html data-i18n付与 / style.css 国旗トグルUI)で実装、約 1 分で完了
+- 既存日本語UIの体験は完全に後方互換(初回訪問時は日本語デフォルト)
+- `<html lang>` も動的書換、a11y(aria-pressed, role=group, aria-label)対応
+
+### v3.0.0 までのロードマップ
+- Phase 1 (本リリース 2.1.0): ✅ 土台 i18n + 国旗トグル
+- Phase 2: モーダル + 法的文書 + プロンプトコピーカード(Issue #9)
+- Phase 3: プロンプト v5 双方向化 + 仕上げ → v3.0.0 タグ(Issue #10)
+
+---
+
 ## [2.0.1] - 2026-06-15
 
 ### 修正(試験公開版のコピー調整)

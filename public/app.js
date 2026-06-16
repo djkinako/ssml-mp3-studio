@@ -7,7 +7,7 @@
 // - 1 ユーザー / 1 日 / 4 回までのレート制限(IP 単位、サーバー側で実装)
 // - 残量(あと N 回)を画面に表示
 
-const VERSION = "2.0.1";
+const VERSION = "2.1.0";
 
 const SETTINGS_STORAGE = "ssml_mp3_studio_public_settings";
 const USAGE_STORAGE = "ssml_mp3_studio_public_usage"; // { date: 'YYYY-MM-DD', remaining: N }
@@ -77,7 +77,9 @@ $("sampleBtn").addEventListener("click", () => {
 function updateByteCount() {
   const bytes = new TextEncoder().encode($("ssml").value).length;
   const el = $("byteCount");
-  el.textContent = `${bytes} バイト / 約5000バイト上限`;
+  el.textContent = window.I18N
+    ? window.I18N.t("ssml.byte_count_template", { bytes })
+    : `${bytes} バイト / 約5000バイト上限`;
   el.style.color = bytes > 5000 ? "#c0392b" : "";
 }
 $("ssml").addEventListener("input", updateByteCount);
@@ -107,9 +109,15 @@ function saveUsageCache(remaining, dailyLimit) {
   }));
 }
 
+// 直近の残量表示用キャッシュ(言語切替時に再描画するため)
+let lastRateInfo = null;
+
 function renderRateInfo(remaining, dailyLimit) {
+  lastRateInfo = { remaining, dailyLimit };
   const el = $("rateInfo");
-  el.textContent = `今日の残り利用回数: ${remaining} / ${dailyLimit} 回`;
+  el.textContent = window.I18N
+    ? window.I18N.t("rate.info_template", { remaining, dailyLimit })
+    : `今日の残り利用回数: ${remaining} / ${dailyLimit} 回`;
   if (remaining <= 0) {
     el.style.color = "#c0392b";
   } else if (remaining <= 1) {
@@ -119,13 +127,18 @@ function renderRateInfo(remaining, dailyLimit) {
   }
 }
 
+// 言語フォールバック付きの t() ヘルパー
+function t(key, replacements = {}) {
+  return window.I18N ? window.I18N.t(key, replacements) : key;
+}
+
 // MP3 生成
 $("generate").addEventListener("click", async () => {
   const ssml = $("ssml").value.trim();
-  if (!ssml) return setStatus("⚠️ SSML を貼ってや", true);
-  if (!ssml.includes("<speak")) return setStatus("⚠️ SSML は <speak>...</speak> で囲んでな", true);
+  if (!ssml) return setStatus(t("status.no_ssml"), true);
+  if (!ssml.includes("<speak")) return setStatus(t("status.no_speak"), true);
   if (new TextEncoder().encode(ssml).length > 5000) {
-    return setStatus("⚠️ SSML が 5000 バイトを超えとる。短くしてな", true);
+    return setStatus(t("status.over_size"), true);
   }
 
   const payload = {
@@ -136,7 +149,7 @@ $("generate").addEventListener("click", async () => {
     zhRate: parseFloat($("zhRate").value),
   };
 
-  setStatus("⏳ 生成中…");
+  setStatus(t("status.generating"));
   $("generate").disabled = true;
 
   try {
@@ -155,9 +168,17 @@ $("generate").addEventListener("click", async () => {
 
     if (!res.ok) {
       if (res.status === 429) {
-        return setStatus(`❌ ${data.error || "今日の利用上限に達したで"}`, true);
+        return setStatus(
+          data.error
+            ? `❌ ${data.error}`
+            : t("status.limit_reached_template", { dailyLimit: data.dailyLimit || 4 }),
+          true,
+        );
       }
-      return setStatus(`❌ エラー: ${data.error || `HTTP ${res.status}`}`, true);
+      return setStatus(
+        t("status.error_template", { message: data.error || `HTTP ${res.status}` }),
+        true,
+      );
     }
 
     const blob = base64ToBlob(data.audioContent, "audio/mp3");
@@ -167,9 +188,9 @@ $("generate").addEventListener("click", async () => {
     $("download").download = `ssml-${timestamp()}.mp3`;
     $("result").classList.remove("hidden");
     const sizeKb = Math.round(blob.size / 1024);
-    setStatus(`✅ 生成できたで! (${sizeKb} KB) 下で再生 / DL してな`);
+    setStatus(t("status.success_template", { size_kb: sizeKb }));
   } catch (err) {
-    setStatus(`❌ 通信エラー: ${err.message}`, true);
+    setStatus(t("status.network_error_template", { message: err.message }), true);
   } finally {
     $("generate").disabled = false;
   }
@@ -193,6 +214,14 @@ function timestamp() {
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
 }
+
+// 言語切替時に動的テキスト(byteCount / rateInfo)を再描画
+window.addEventListener("langchange", () => {
+  updateByteCount();
+  if (lastRateInfo) {
+    renderRateInfo(lastRateInfo.remaining, lastRateInfo.dailyLimit);
+  }
+});
 
 // 初期化
 $("version").textContent = `v${VERSION}`;

@@ -5,29 +5,37 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SSML MP3 Studio β (試験公開版)</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="i18n.js"></script>
 </head>
 <body>
   <main class="container">
     <header>
-      <h1>🔊 SSML MP3 Studio <span class="beta">β</span> <span id="version" class="version"></span></h1>
-      <p class="subtitle">SSML を貼って、日中混在の学習音声を MP3 で書き出す（試験公開版）</p>
+      <div class="lang-toggle" role="group" aria-label="言語選択">
+        <button id="langJa" class="lang-btn" type="button" aria-pressed="true">
+          <span data-i18n="lang.ja_label">🇯🇵 JA</span>
+        </button>
+        <button id="langTw" class="lang-btn" type="button" aria-pressed="false">
+          <span data-i18n="lang.tw_label">🇹🇼 繁</span>
+        </button>
+      </div>
+      <h1>🔊 <span data-i18n="header.title">SSML MP3 Studio</span> <span class="beta" data-i18n="header.beta">β</span> <span id="version" class="version"></span></h1>
+      <p class="subtitle" data-i18n="header.subtitle">SSML を貼って、日中混在の学習音声を MP3 で書き出す（試験公開版）</p>
     </header>
 
     <!-- 利用案内 -->
     <section class="card notice">
       <p>
-        ✨ <strong>キー不要・無料で使える試験公開版</strong>です。<br />
-        台湾華語学習者向け(初級者〜上級者)に、日本語＋台湾華語(繁体字)の段階的中国語化 SSML から MP3 を生成します。<br />
-        🐛 上限: <strong>1 ユーザーあたり 1 日 4 回まで</strong>(運用コスト抑制のため)
+        <span data-i18n="notice.body">✨ <strong>無料で使える試験公開版</strong>です。台湾華語学習者向け(初級者〜上級者)に、日本語＋台湾華語(繁体字)の段階的中国語化 SSML から MP3 を生成します。</span><br />
+        <span data-i18n="notice.limit">🐛 上限: <strong>1 ユーザーあたり 1 日 4 回まで</strong>(運用コスト抑制のため)</span>
       </p>
     </section>
 
     <!-- 声の設定 -->
     <section class="card">
-      <h2>1. 声の設定</h2>
+      <h2 data-i18n="voice.section_title">1. 声の設定</h2>
       <div class="grid">
         <label>
-          日本語の声
+          <span data-i18n="voice.ja_label">日本語の声</span>
           <select id="jaVoice">
             <option value="ja-JP-Standard-A">日本語 女性 (Standard-A)</option>
             <option value="ja-JP-Standard-B" selected>日本語 女性 (Standard-B)</option>
@@ -36,7 +44,7 @@
           </select>
         </label>
         <label>
-          中国語の声
+          <span data-i18n="voice.zh_label">中国語の声</span>
           <select id="zhVoice">
             <option value="cmn-TW-Standard-A" selected>台湾華語(繁) 女性 (Standard-A)</option>
             <option value="cmn-TW-Standard-B">台湾華語(繁) 男性 (Standard-B)</option>
@@ -48,44 +56,43 @@
           </select>
         </label>
         <label>
-          日本語の速度 <span id="jaRateVal">1.0</span>
+          <span data-i18n="voice.ja_speed_label">日本語の速度</span> <span id="jaRateVal">1.0</span>
           <input type="range" id="jaRate" min="0.5" max="1.5" step="0.05" value="1.0" />
         </label>
         <label>
-          中国語の速度 <span id="zhRateVal">1.0</span>
+          <span data-i18n="voice.zh_speed_label">中国語の速度</span> <span id="zhRateVal">1.0</span>
           <input type="range" id="zhRate" min="0.5" max="1.5" step="0.05" value="1.0" />
         </label>
       </div>
-      <p class="hint">※ SSML 内の <code>&lt;lang xml:lang="zh-…"&gt;</code> で囲まれた中国語部分が、自動で「中国語の声」＋「中国語の速度」に切り替わります。</p>
+      <p class="hint" data-i18n="voice.hint">※ SSML 内の <code>&lt;lang xml:lang="zh-…"&gt;</code> で囲まれた中国語部分が、自動で「中国語の声」＋「中国語の速度」に切り替わります。</p>
     </section>
 
     <!-- SSML 入力 -->
     <section class="card">
-      <h2>2. SSML を貼る</h2>
-      <p class="hint">
-        <code>&lt;speak&gt;...&lt;/speak&gt;</code> で囲まれた SSML を 1 個貼り付けてください。
-        <strong>5000 バイト上限</strong>です。
+      <h2 data-i18n="ssml.section_title">2. SSML を貼る</h2>
+      <p class="hint" data-i18n="ssml.intro">
+        <code>&lt;speak&gt;...&lt;/speak&gt;</code> で囲まれた SSML を 1 個貼り付けてください。<strong>5000 バイト上限</strong>です。
       </p>
-      <textarea id="ssml" rows="12" spellcheck="false" placeholder="<speak>...</speak> をここに貼って"></textarea>
+      <textarea id="ssml" rows="12" spellcheck="false" data-i18n-attr="placeholder" data-i18n="ssml.placeholder" placeholder="<speak>...</speak> をここに貼って"></textarea>
       <div class="row">
-        <button id="sampleBtn" class="btn-secondary">サンプル投入</button>
+        <button id="sampleBtn" class="btn-secondary" data-i18n="ssml.sample_btn">サンプル投入</button>
         <span class="hint" id="byteCount">0 バイト / 約5000バイト上限</span>
       </div>
     </section>
 
     <!-- 生成 -->
     <section class="card">
-      <button id="generate" class="btn-primary">🔊 MP3 生成</button>
+      <button id="generate" class="btn-primary" data-i18n="generate.btn">🔊 MP3 生成</button>
       <p class="status" id="status"></p>
       <p class="hint" id="rateInfo"></p>
       <div id="result" class="hidden">
         <audio id="player" controls></audio>
-        <a id="download" class="btn-primary" download="ssml-output.mp3">⬇ ダウンロード</a>
+        <a id="download" class="btn-primary" download="ssml-output.mp3" data-i18n="result.download_btn">⬇ ダウンロード</a>
       </div>
     </section>
 
     <footer class="footer">
-      <p>© SSML MP3 Studio β</p>
+      <p data-i18n="footer.copy">© SSML MP3 Studio β</p>
     </footer>
   </main>
 
