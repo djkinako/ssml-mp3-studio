@@ -1,33 +1,34 @@
-// SSML MP3 Studio Public — Cloud Functions for Firebase (v2.0.0)
+// SSML MP3 Studio Public — Cloud Functions for Firebase v2 (v2.0.1)
 //
 // 公開版バックエンド: Google Cloud TTS の API キーを Firebase 側に隠蔽し、
 // フロントから来る SSML を Standard 声で MP3 化して返す。
 // IP ベースの 1 日 4 回レート制限を Firestore で実装。
 //
+// firebase-functions v6 系 (v2 SDK) に対応した書き方
 // エンドポイント: POST /tts
 //   Body: { ssml, jaVoice, zhVoice, jaRate, zhRate }
-//   Response: { audioContent: "...base64...", remaining: N }
+//   Response: { audioContent: "...base64...", remaining: N, dailyLimit: N, used: N }
 
-const functions = require("firebase-functions");
+const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
 const db = admin.firestore();
 
-// 環境変数から Google TTS API キーを取得
-// firebase functions:secrets:set GOOGLE_TTS_API_KEY でセット
-const GOOGLE_TTS_API_KEY = process.env.GOOGLE_TTS_API_KEY;
+// Secret として登録した Google TTS API キー
+// firebase functions:secrets:set GOOGLE_TTS_API_KEY でセット済み
+const GOOGLE_TTS_API_KEY = defineSecret("GOOGLE_TTS_API_KEY");
 
 const DAILY_LIMIT = 4;
 
-// CORS 設定: 同一オリジン(Firebase Hosting)からのみ許可
-// テスト用にローカル http://localhost も許可
+// CORS 許可オリジン
 const ALLOWED_ORIGINS = [
   "https://ssml-mp3-studio.web.app",
   "https://ssml-mp3-studio.firebaseapp.com",
-  "http://localhost:8000",
   "http://localhost:5000",
   "http://127.0.0.1:5000",
+  "http://localhost:8000",
 ];
 
 function setCors(req, res) {
@@ -40,7 +41,7 @@ function setCors(req, res) {
   res.set("Access-Control-Max-Age", "3600");
 }
 
-// IP 取得: Firebase の x-forwarded-for ヘッダ優先
+// IP 取得: x-forwarded-for ヘッダ優先
 function getClientIp(req) {
   const xff = req.headers["x-forwarded-for"];
   if (typeof xff === "string") {
@@ -56,7 +57,6 @@ function todayJst() {
 }
 
 // <speak> の中身を抜き出して <lang> を <voice>+<prosody> に書き換える
-// (個人版 app.js の buildSsml と同じロジック)
 function buildSsml(raw, zhVoice, jaRate, zhRate) {
   const m = raw.match(/<speak[^>]*>([\s\S]*)<\/speak>/i);
   let inner = m ? m[1] : raw;
@@ -74,7 +74,7 @@ function langCodeFromVoice(voiceName) {
   return voiceName.split("-").slice(0, 2).join("-");
 }
 
-// Standard 声のみ許可(WaveNet/Neural2 は個人用、公開版はコスト抑制のため Standard 限定)
+// Standard 声のみホワイトリスト
 const ALLOWED_VOICES = new Set([
   // 日本語 Standard
   "ja-JP-Standard-A", "ja-JP-Standard-B", "ja-JP-Standard-C", "ja-JP-Standard-D",
@@ -83,21 +83,21 @@ const ALLOWED_VOICES = new Set([
   "cmn-CN-Standard-A", "cmn-CN-Standard-B", "cmn-CN-Standard-C", "cmn-CN-Standard-D",
 ]);
 
-exports.tts = functions
-  .region("asia-northeast1")
-  .runWith({
+exports.tts = onRequest(
+  {
+    region: "asia-northeast1",
     timeoutSeconds: 60,
-    memory: "256MB",
-    secrets: ["GOOGLE_TTS_API_KEY"],
-  })
-  .https.onRequest(async (req, res) => {
+    memory: "256MiB",
+    secrets: [GOOGLE_TTS_API_KEY],
+    cors: false, // 手動 CORS (ALLOWED_ORIGINS で制御)
+  },
+  async (req, res) => {
     setCors(req, res);
 
     if (req.method === "OPTIONS") {
       res.status(204).send("");
       return;
     }
-
     if (req.method !== "POST") {
       res.status(405).json({ error: "Method Not Allowed" });
       return;
@@ -106,31 +106,26 @@ exports.tts = functions
     try {
       const { ssml, jaVoice, zhVoice, jaRate, zhRate } = req.body || {};
 
-      // 基本バリデーション
+      // バリデーション
       if (!ssml || typeof ssml !== "string") {
-        res.status(400).json({ error: "SSML が空やで" });
-        return;
+        return res.status(400).json({ error: "SSML が空やで" });
       }
       if (!ssml.includes("<speak")) {
-        res.status(400).json({ error: "SSML は <speak>...</speak> で囲んでな" });
-        return;
+        return res.status(400).json({ error: "SSML は <speak>...</speak> で囲んでな" });
       }
       if (ssml.length > 5000) {
-        res.status(400).json({ error: "SSML が 5000 文字を超えとる(Google TTS の上限)" });
-        return;
+        return res.status(400).json({ error: "SSML が 5000 文字を超えとる(Google TTS の上限)" });
       }
       if (!ALLOWED_VOICES.has(jaVoice) || !ALLOWED_VOICES.has(zhVoice)) {
-        res.status(400).json({ error: "公開版は Standard 声のみ対応や" });
-        return;
+        return res.status(400).json({ error: "公開版は Standard 声のみ対応や" });
       }
       const jaR = parseFloat(jaRate);
       const zhR = parseFloat(zhRate);
       if (!(jaR >= 0.5 && jaR <= 1.5) || !(zhR >= 0.5 && zhR <= 1.5)) {
-        res.status(400).json({ error: "速度は 0.5〜1.5 の範囲で指定してな" });
-        return;
+        return res.status(400).json({ error: "速度は 0.5〜1.5 の範囲で指定してな" });
       }
 
-      // レート制限チェック
+      // レート制限チェック(Firestore トランザクションでアトミック)
       const ip = getClientIp(req);
       const today = todayJst();
       const docId = `${ip}_${today}`;
@@ -140,7 +135,7 @@ exports.tts = functions
         const doc = await tx.get(docRef);
         const current = doc.exists ? (doc.data().count || 0) : 0;
         if (current >= DAILY_LIMIT) {
-          return current; // 上限到達フラグ用に返す
+          return current; // 上限到達、インクリメントせず
         }
         tx.set(docRef, {
           count: current + 1,
@@ -152,19 +147,19 @@ exports.tts = functions
       });
 
       if (count > DAILY_LIMIT) {
-        res.status(429).json({
+        return res.status(429).json({
           error: `今日の利用上限(${DAILY_LIMIT}回/日)に達したで。明日また来てな。`,
           dailyLimit: DAILY_LIMIT,
-          used: count - 1, // インクリメントせず元の値を返す
+          used: count - 1,
           remaining: 0,
         });
-        return;
       }
 
       // Google TTS 呼び出し
       const builtSsml = buildSsml(ssml, zhVoice, jaR, zhR);
+      const apiKey = GOOGLE_TTS_API_KEY.value();
       const ttsRes = await fetch(
-        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(GOOGLE_TTS_API_KEY)}`,
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${encodeURIComponent(apiKey)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -184,15 +179,14 @@ exports.tts = functions
       if (!ttsRes.ok) {
         const msg = ttsData?.error?.message || `Google TTS HTTP ${ttsRes.status}`;
         console.error("Google TTS error:", msg);
-        // 失敗時はカウンタをデクリメント(課金されなかったのでユーザー保護)
+        // 失敗時はカウンタをデクリメント(課金されてないのでユーザー保護)
         await docRef.set({
           count: admin.firestore.FieldValue.increment(-1),
         }, { merge: true });
-        res.status(502).json({ error: `音声合成エラー: ${msg}` });
-        return;
+        return res.status(502).json({ error: `音声合成エラー: ${msg}` });
       }
 
-      res.status(200).json({
+      return res.status(200).json({
         audioContent: ttsData.audioContent,
         dailyLimit: DAILY_LIMIT,
         used: count,
@@ -200,6 +194,7 @@ exports.tts = functions
       });
     } catch (err) {
       console.error("Function error:", err);
-      res.status(500).json({ error: `内部エラー: ${err.message}` });
+      return res.status(500).json({ error: `内部エラー: ${err.message}` });
     }
-  });
+  },
+);
