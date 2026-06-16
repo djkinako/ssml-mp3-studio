@@ -8,6 +8,7 @@
 # 生成物 / 一時ファイル
 *.mp3
 !audio/*.mp3
+!functions/audio/*.mp3
 output/
 tmp/
 
