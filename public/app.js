@@ -7,7 +7,12 @@
 // - 1 ユーザー / 1 日 / 4 回までのレート制限(IP 単位、サーバー側で実装)
 // - 残量(あと N 回)を画面に表示
 
-const VERSION = "3.1.3";
+const VERSION = "3.1.4";
+
+// 安全マージン込みの SSML サイズ上限(プロンプトと同じ値)
+// Google TTS の生上限は 5000 だが、buildSsml() の <lang>→<voice> 変換で膨らむため
+// 4000 を目標とすることで実送信時 5000 以下に確実に収まる
+const SAFE_SIZE_LIMIT = 4000;
 
 const SETTINGS_STORAGE = "ssml_mp3_studio_public_settings";
 const USAGE_STORAGE = "ssml_mp3_studio_public_usage"; // { date: 'YYYY-MM-DD', remaining: N }
@@ -106,11 +111,17 @@ function updateByteCount() {
   // 元サイズ + 変換後サイズ両方を表示
   const lang = window.I18N ? window.I18N.currentLang : "ja";
   const label = lang === "tw"
-    ? `${bytes} bytes(送信時 ${built}, 上限 5000)`
-    : `${bytes} バイト(送信時 ${built}, 上限 5000)`;
+    ? `${bytes} bytes(送信時 ${built}, 目標 ${SAFE_SIZE_LIMIT})`
+    : `${bytes} バイト(送信時 ${built}, 目標 ${SAFE_SIZE_LIMIT})`;
   el.textContent = label;
-  // 変換後サイズで判定(これが実際の Google TTS 制限)
-  el.style.color = built > 5000 ? "#c0392b" : "";
+  // 4000 を超えたら警告色(安全マージン)
+  if (built > SAFE_SIZE_LIMIT) {
+    el.style.color = "#c0392b";
+  } else if (built > SAFE_SIZE_LIMIT * 0.85) {
+    el.style.color = "#e67e22"; // 85% 超(3400 超)でオレンジ警告
+  } else {
+    el.style.color = "";
+  }
 }
 $("ssml").addEventListener("input", updateByteCount);
 // 声・速度変更時もバイト計算は変わるので再計算
@@ -173,7 +184,8 @@ $("generate").addEventListener("click", async () => {
   const ssml = $("ssml").value.trim();
   if (!ssml) return setStatus(t("status.no_ssml"), true);
   if (!ssml.includes("<speak")) return setStatus(t("status.no_speak"), true);
-  if (new TextEncoder().encode(ssml).length > 5000) {
+  // 送信時サイズ(buildSsml 変換後)で判定。これが実際の Google TTS 制限に響く
+  if (estimateBuiltSize(ssml) > 5000) {
     return setStatus(t("status.over_size"), true);
   }
 
@@ -307,13 +319,16 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 
 // プロンプトコピー機能(<details> 展開時に lazy load)
 // 公開版は dual-v5.md(双方向対応・レベル分け)を配信
-// 個人版用の zhtw-v4.md は別配信(ssml-mp3-studio/prompts/ にあり、公開版からは参照しない)
+// VERSION クエリ付きで fetch することで、リリースごとに確実に最新を取得
 let promptCache = null;
+let promptCacheVersion = null;
 async function loadPrompt() {
-  if (promptCache) return promptCache;
-  const res = await fetch("/dual-v5.md");
+  // version が変わったらキャッシュ無効化
+  if (promptCache && promptCacheVersion === VERSION) return promptCache;
+  const res = await fetch(`/dual-v5.md?v=${encodeURIComponent(VERSION)}`);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   promptCache = await res.text();
+  promptCacheVersion = VERSION;
   return promptCache;
 }
 
