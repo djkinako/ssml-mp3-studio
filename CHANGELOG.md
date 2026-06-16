@@ -8,6 +8,59 @@
 
 ---
 
+## [2.0.0] - 2026-06-15
+
+### 🎉 公開版リリース (MAJOR)
+個人用とは別に **キー不要・無料で使える「公開版」** を Firebase Hosting + Functions で構築。
+
+### 追加(公開版 — `public/` + `functions/`)
+- 🌐 **Firebase Hosting + Cloud Functions** で公開版を別ドメイン配信(`https://ssml-mp3-studio.web.app/`)
+- 🔐 **API キーをサーバー側に隠蔽** — フロントには一切露出しない、ブラウザの View Source でも見えない
+- 🚦 **IP ベース 1 日 4 回レート制限**(Firestore で `{IP}_{日付}` ドキュメント管理、JST 0:00 リセット)
+- 📊 **残量(あと N 回)を画面に表示** — 各リクエスト後にサーバーから返却、localStorage キャッシュ
+- 🎵 **Standard 声 11 種限定**(コスト抑制のため WaveNet/Neural2 は公開版で非対応)
+- 🚫 **複数ブロック機能を意図的に除外** — 公開版は単一 SSML × 1 MP3 のシンプル運用
+- 🛡️ Firestore Security Rules でクライアント直アクセス完全遮断、Admin SDK 経由のみ書き込み
+- 📋 ファイル構成:
+  - `firebase.json` Hosting + Functions + Firestore 設定、`/api/tts` を Functions に rewrite
+  - `.firebaserc` プロジェクト ID `ssml-mp3-studio`
+  - `firestore.rules` クライアントアクセス全遮断ルール
+  - `functions/index.js` TTS プロキシ + buildSsml(`<lang>→<voice>` 変換、個人版と同じロジック)+ IP レート制限
+  - `functions/package.json` Node.js 20 / firebase-admin + firebase-functions
+  - `public/index.html` 公開フロント(キー入力欄なし、Standard 限定、単一 textarea、残量表示エリア)
+  - `public/app.js` フロントロジック(localStorage 設定永続化、Fetch で `/api/tts` 呼出、残量キャッシュ)
+  - `public/style.css` シンプルカード式、`.notice` カード(利用案内)、フッター
+
+### 変更(個人版)
+- 🏷️ 個人版も VERSION 1.2.0 → **2.0.0** にバンプして両者を同じバージョン番号で管理
+
+### きなこ作業(デプロイ前に必要)
+1. `npm install -g firebase-tools` (未導入なら)
+2. `firebase login`
+3. `cd functions && npm install`
+4. Firebase Console で **Blaze プラン**へ切替(従量課金、無料枠あり)
+5. **新しい Google TTS API キーを発行**(個人版とは別のキー、リファラ制限なし)
+6. `firebase functions:secrets:set GOOGLE_TTS_API_KEY` で API キーを Secret として保存
+7. `firebase deploy` で Functions + Hosting + Firestore を一括デプロイ
+8. Google Cloud Console で**予算アラート設定**(月 $5 警告 / $20 停止)
+9. (任意)カスタムドメイン設定
+
+### 背景
+v1.2.0 で Standard 声を追加 → きなこの実機試聴で「Standard で十分」判定 → 公開版に GO。
+個人版(GitHub Pages)と公開版(Firebase Hosting)を**並行運用**する 2 軸構成に進化:
+
+| | 個人版(現状継続) | 公開版(新規 v2.0.0) |
+|---|---|---|
+| URL | `djkinako.github.io/ssml-mp3-studio/` | `ssml-mp3-studio.web.app/` |
+| API キー | ユーザー入力 | きなこのキー隠蔽 |
+| 声 | 全種(Wavenet/Neural2/Standard) | Standard 限定 |
+| ブロック追加 | 可(複数 SSML → 1 MP3) | 不可(1 SSML 固定) |
+| 効果音 | あり(`audio/*.mp3`) | なし(シンプル運用) |
+| レート制限 | なし | 1 IP / 1 日 4 回 |
+| 想定ユーザー | きなこ自身 + IT寄り中国語学習者 | 中国語学習コミュニティ広く |
+
+---
+
 ## [1.2.0] - 2026-06-15
 
 ### 追加

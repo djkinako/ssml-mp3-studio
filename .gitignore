@@ -16,3 +16,10 @@ tmp/
 *.key
 credentials.json
 .gstack/
+
+# Firebase Functions
+functions/node_modules/
+functions/.runtimeconfig.json
+.firebase/
+firebase-debug.log
+firebase-debug.*.log

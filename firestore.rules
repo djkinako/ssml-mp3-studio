@@ -1,0 +1,16 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ratelimits は Functions からのみ書き込み(Admin SDK 経由は rules バイパスするので OK)
+    // クライアントから直接アクセスする経路は遮断
+    match /ratelimits/{docId} {
+      allow read: if false;
+      allow write: if false;
+    }
+
+    // それ以外は全部拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
