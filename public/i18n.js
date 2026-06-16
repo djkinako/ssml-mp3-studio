@@ -69,7 +69,7 @@
 
       // プロンプトコピーカード
       "prompt.title": "📋 学習音声 SSML を作るためのプロンプト",
-      "prompt.intro": "ChatGPT や Claude にこのプロンプトを貼り付けてから、日本語と中国語の例文ペアを渡したら、段階的中国語化 SSML を作ってくれるで。出てきた SSML を上の欄に貼って MP3 化してな。",
+      "prompt.intro": "ChatGPT や Claude にこのプロンプトを貼り付けたら、最初に「母語(日本人/台湾人)」「学習したい言語(日本語/中国語)」「レベル(初級/中級/上級)」を聞いてくるで。例文は日中ペアでも、片方の言語だけでもOK(AIが翻訳してくれる)。出てきた SSML を上の欄に貼って MP3 化してな。",
       "prompt.copy_btn": "プロンプトをコピー",
       "prompt.copy_success": "✓ コピーしたで",
       "prompt.copy_failed": "❌ コピー失敗、手動でコピーしてな",
@@ -156,7 +156,7 @@
 
       // プロンプトコピーカード
       "prompt.title": "📋 用來製作學習音檔 SSML 的提示詞",
-      "prompt.intro": "將此提示詞貼到 ChatGPT 或 Claude,然後給它日中例句配對,就能產生漸進式中文化 SSML。把產出的 SSML 貼到上方欄位即可生成 MP3。",
+      "prompt.intro": "將此提示詞貼到 ChatGPT 或 Claude 後,它會先詢問「母語(日本人/台灣人)」「想學習的語言(日語/華語)」「程度(初級/中級/高級)」。例句可以提供日中對照,也可以只給單一語言的例句(AI 會翻譯)。把產出的 SSML 貼到上方欄位即可生成 MP3。",
       "prompt.copy_btn": "複製提示詞",
       "prompt.copy_success": "✓ 已複製",
       "prompt.copy_failed": "❌ 複製失敗,請手動複製",

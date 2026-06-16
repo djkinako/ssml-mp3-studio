@@ -7,7 +7,7 @@
 // - 1 ユーザー / 1 日 / 4 回までのレート制限(IP 単位、サーバー側で実装)
 // - 残量(あと N 回)を画面に表示
 
-const VERSION = "2.5.0";
+const VERSION = "3.0.0";
 
 const SETTINGS_STORAGE = "ssml_mp3_studio_public_settings";
 const USAGE_STORAGE = "ssml_mp3_studio_public_usage"; // { date: 'YYYY-MM-DD', remaining: N }
@@ -270,10 +270,12 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 });
 
 // プロンプトコピー機能(<details> 展開時に lazy load)
+// 公開版は dual-v5.md(双方向対応・レベル分け)を配信
+// 個人版用の zhtw-v4.md は別配信(ssml-mp3-studio/prompts/ にあり、公開版からは参照しない)
 let promptCache = null;
 async function loadPrompt() {
   if (promptCache) return promptCache;
-  const res = await fetch("/zhtw-v4.md");
+  const res = await fetch("/dual-v5.md");
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   promptCache = await res.text();
   return promptCache;
