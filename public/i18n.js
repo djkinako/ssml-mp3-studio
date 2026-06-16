@@ -75,10 +75,14 @@
       "prompt.copy_failed": "❌ コピー失敗、手動でコピーしてな",
 
       // ランディング会話劇(ハカセとケンタくん)
+      "landing.hook": "中国語の勉強で <strong>「日本語と中国語が混ざった音声教材」</strong> が欲しい〜って思ったこと、ない?<br />このサイト、その悩みを解決するで。",
       "landing.title": "🎙️ このサイト、何ができるん?",
       "landing.subtitle": "ハカセとケンタくんの会話で解説するで",
       "landing.kenta_name": "ケンタ",
       "landing.hakase_name": "ハカセ",
+      "landing.sample_title": "🎧 こんな感じの教材が作れるで",
+      "landing.sample_desc": "実際に生成した MP3 のサンプルや。再生して雰囲気つかんでみて。",
+      "landing.sample_caption": "(サンプル: 台湾華語 N1-N2 学習向け教材・約 1 分)",
       "landing.q1": "ハカセ、日本語と中国語が混ざった文章を AI に読ませると、なんか変な読み方になるんやけど…",
       "landing.a1": "ええとこに気づいたな。普通のAI音声合成は、メインの言語(例えば日本語)で全部読もうとするから、混ざってる中国語まで日本語っぽく読んでまうんや。これが「日中混在読み上げ問題」やな。",
       "landing.q2": "ほな、どうやって直すん?",
@@ -158,10 +162,14 @@
       "prompt.copy_failed": "❌ 複製失敗,請手動複製",
 
       // ランディング会話劇
+      "landing.hook": "在學中文時,有沒有想過要 <strong>「日語與華語混合的學習音檔」</strong>?<br />本網站就是為了解決這個煩惱而生。",
       "landing.title": "🎙️ 這個網站可以做什麼?",
       "landing.subtitle": "用博士與小健的對話來說明",
       "landing.kenta_name": "小健",
       "landing.hakase_name": "博士",
+      "landing.sample_title": "🎧 可以做出像這樣的教材",
+      "landing.sample_desc": "這是實際生成的 MP3 範例。播放看看,先感受一下氛圍。",
+      "landing.sample_caption": "(範例:台灣華語 N1-N2 學習用教材,約 1 分鐘)",
       "landing.q1": "博士,我把日語和中文混在一起的句子讓 AI 朗讀,結果讀音怪怪的…",
       "landing.a1": "你發現了好問題。一般的 AI 語音合成會用主要語言(例如日語)整段唸完,所以中間夾雜的中文也會被當成日語來讀。這就是「中日混雜朗讀問題」。",
       "landing.q2": "那要怎麼修正呢?",
@@ -238,7 +246,9 @@
       window.dispatchEvent(new CustomEvent("langchange", { detail: { lang: next } }));
     },
 
-    // 初回起動時の言語推定: localStorage → navigator.language → デフォ ja
+    // 初回起動時の言語推定: localStorage → navigator.languages → デフォ ja
+    // 台湾華語(tw)判定: zh-TW / zh-Hant / zh-HK / tw のいずれかが含まれる場合
+    // (zh-CN や zh-Hans-CN は ja 判定 = 大陸ユーザーを誤って tw に振り分けない)
     detectInitialLang() {
       try {
         const saved = localStorage.getItem("ssml_mp3_studio_lang");
@@ -246,8 +256,17 @@
       } catch (e) {
         // 無視
       }
-      const navLang = (navigator.language || "").toString();
-      if (/^zh|^tw/i.test(navLang)) return "tw";
+      const candidates = Array.isArray(navigator.languages) && navigator.languages.length > 0
+        ? navigator.languages
+        : [navigator.language || ""];
+      for (const lang of candidates) {
+        const s = String(lang).toLowerCase();
+        // 明示的に台湾華語/繁体字/香港 系のみ tw 判定
+        if (/^(zh-tw|zh-hant|zh-hk|tw)\b/i.test(s)) return "tw";
+        // それ以外の zh-* (zh-CN, zh-Hans) と日本語系は ja を優先
+        if (s.startsWith("ja")) return "ja";
+      }
+      // どっちもヒットしなければデフォ ja
       return "ja";
     },
   };

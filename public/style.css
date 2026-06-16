@@ -240,6 +240,17 @@ a:hover { color: var(--primary-hover); }
   padding: 24px 20px 20px;
   margin-bottom: 20px;
 }
+.landing-hook {
+  margin: 0 0 18px;
+  padding: 14px 18px;
+  background: #fff;
+  border-left: 4px solid var(--primary);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: var(--text);
+}
+.landing-hook strong { color: var(--primary); }
 .landing-title {
   margin: 0 0 4px;
   font-size: 1.2rem;
@@ -250,6 +261,35 @@ a:hover { color: var(--primary-hover); }
   margin: 0 0 18px;
   font-size: 0.85rem;
   text-align: center;
+  color: var(--muted);
+}
+
+/* 音声サンプルカード */
+.sample-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-top: 18px;
+  text-align: center;
+}
+.sample-title {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  color: var(--text);
+}
+.sample-desc {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.sample-audio {
+  width: 100%;
+  max-width: 480px;
+}
+.sample-caption {
+  margin: 8px 0 0;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 
@@ -296,10 +336,7 @@ a:hover { color: var(--primary-hover); }
 }
 .dialogue-bubble strong { color: var(--primary); }
 
-/* ハカセ(右側に表示、緑系) */
-.dialogue-hakase {
-  flex-direction: row-reverse;
-}
+/* ハカセ(左側に表示、緑系) */
 .dialogue-hakase .dialogue-avatar {
   background: #e8f5ec;
   border-color: #b8dcc4;
@@ -308,9 +345,12 @@ a:hover { color: var(--primary-hover); }
   background: #f1faf3;
   border-color: #c5e3cf;
 }
-.dialogue-hakase .dialogue-name { text-align: right; color: var(--primary); }
+.dialogue-hakase .dialogue-name { color: var(--primary); }
 
-/* ケンタくん(左側、黄色系) */
+/* ケンタくん(右側、黄色系) */
+.dialogue-kenta {
+  flex-direction: row-reverse;
+}
 .dialogue-kenta .dialogue-avatar {
   background: #fef8e0;
   border-color: #f4d35e;
@@ -319,7 +359,7 @@ a:hover { color: var(--primary-hover); }
   background: #fffce0;
   border-color: #f4d35e;
 }
-.dialogue-kenta .dialogue-name { color: #b8860b; }
+.dialogue-kenta .dialogue-name { text-align: right; color: #b8860b; }
 
 @media (max-width: 560px) {
   .landing { padding: 18px 14px; }
