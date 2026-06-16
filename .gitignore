@@ -9,6 +9,7 @@
 *.mp3
 !audio/*.mp3
 !functions/audio/*.mp3
+!public/sample.mp3
 output/
 tmp/
 
