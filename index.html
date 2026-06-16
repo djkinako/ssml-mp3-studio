@@ -31,21 +31,40 @@
         <label>
           日本語の声
           <select id="jaVoice">
-            <option value="ja-JP-Wavenet-B">日本語 女性 (Wavenet-B)</option>
-            <option value="ja-JP-Wavenet-A">日本語 女性 (Wavenet-A)</option>
-            <option value="ja-JP-Wavenet-C">日本語 男性 (Wavenet-C)</option>
-            <option value="ja-JP-Wavenet-D">日本語 男性 (Wavenet-D)</option>
-            <option value="ja-JP-Neural2-B">日本語 女性 (Neural2-B)</option>
+            <optgroup label="高品質 (Wavenet・Neural2 — $16/100万文字、月100万無料)">
+              <option value="ja-JP-Wavenet-B">日本語 女性 (Wavenet-B)</option>
+              <option value="ja-JP-Wavenet-A">日本語 女性 (Wavenet-A)</option>
+              <option value="ja-JP-Wavenet-C">日本語 男性 (Wavenet-C)</option>
+              <option value="ja-JP-Wavenet-D">日本語 男性 (Wavenet-D)</option>
+              <option value="ja-JP-Neural2-B">日本語 女性 (Neural2-B)</option>
+            </optgroup>
+            <optgroup label="標準 (Standard — $4/100万文字、月400万無料)">
+              <option value="ja-JP-Standard-A">日本語 女性 (Standard-A)</option>
+              <option value="ja-JP-Standard-B">日本語 女性 (Standard-B)</option>
+              <option value="ja-JP-Standard-C">日本語 男性 (Standard-C)</option>
+              <option value="ja-JP-Standard-D">日本語 男性 (Standard-D)</option>
+            </optgroup>
           </select>
         </label>
         <label>
           中国語の声
           <select id="zhVoice">
-            <option value="cmn-TW-Wavenet-A">台湾華語(繁) 女性 (Wavenet-A)</option>
-            <option value="cmn-TW-Wavenet-B">台湾華語(繁) 男性 (Wavenet-B)</option>
-            <option value="cmn-TW-Wavenet-C">台湾華語(繁) 男性 (Wavenet-C)</option>
-            <option value="cmn-CN-Wavenet-A">大陸普通話(簡) 女性 (Wavenet-A)</option>
-            <option value="cmn-CN-Wavenet-B">大陸普通話(簡) 男性 (Wavenet-B)</option>
+            <optgroup label="高品質 (Wavenet — $16/100万文字、月100万無料)">
+              <option value="cmn-TW-Wavenet-A">台湾華語(繁) 女性 (Wavenet-A)</option>
+              <option value="cmn-TW-Wavenet-B">台湾華語(繁) 男性 (Wavenet-B)</option>
+              <option value="cmn-TW-Wavenet-C">台湾華語(繁) 男性 (Wavenet-C)</option>
+              <option value="cmn-CN-Wavenet-A">大陸普通話(簡) 女性 (Wavenet-A)</option>
+              <option value="cmn-CN-Wavenet-B">大陸普通話(簡) 男性 (Wavenet-B)</option>
+            </optgroup>
+            <optgroup label="標準 (Standard — $4/100万文字、月400万無料)">
+              <option value="cmn-TW-Standard-A">台湾華語(繁) 女性 (Standard-A)</option>
+              <option value="cmn-TW-Standard-B">台湾華語(繁) 男性 (Standard-B)</option>
+              <option value="cmn-TW-Standard-C">台湾華語(繁) 男性 (Standard-C)</option>
+              <option value="cmn-CN-Standard-A">大陸普通話(簡) 女性 (Standard-A)</option>
+              <option value="cmn-CN-Standard-B">大陸普通話(簡) 男性 (Standard-B)</option>
+              <option value="cmn-CN-Standard-C">大陸普通話(簡) 男性 (Standard-C)</option>
+              <option value="cmn-CN-Standard-D">大陸普通話(簡) 女性 (Standard-D)</option>
+            </optgroup>
           </select>
         </label>
         <label>
@@ -57,7 +76,10 @@
           <input type="range" id="zhRate" min="0.5" max="1.5" step="0.05" value="1.0" />
         </label>
       </div>
-      <p class="hint">※ SSML 内の <code>&lt;lang xml:lang="zh-…"&gt;</code> で囲まれた中国語部分が、自動で「中国語の声」＋「中国語の速度」に切り替わります。台湾華語を学ぶなら Claude に<strong>繁体字</strong>で SSML を作ってもらうのがおすすめ。</p>
+      <p class="hint">
+        ※ SSML 内の <code>&lt;lang xml:lang="zh-…"&gt;</code> で囲まれた中国語部分が、自動で「中国語の声」＋「中国語の速度」に切り替わります。台湾華語を学ぶなら Claude に<strong>繁体字</strong>で SSML を作ってもらうのがおすすめ。<br />
+        💰 <strong>料金目安(Google TTS)</strong>: 高品質 Wavenet/Neural2 = 月 100 万文字まで無料・超過後 $16/100万、標準 Standard = 月 400 万文字まで無料・超過後 $4/100万。SSML タグも文字数にカウントされます。
+      </p>
     </section>
 
     <!-- SSML 入力(複数ブロック対応) -->
