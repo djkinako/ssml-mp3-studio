@@ -8,6 +8,25 @@
 
 ---
 
+## [3.1.0] - 2026-06-16
+
+### 追加
+- 🎨 **ハカセとケンタのアバターをイラスト画像に置換**
+  - 絵文字 🧑‍🎓 / 👨‍🔬 → イラスト(ドラクエ風タッチ)に
+  - `public/images/kenta.jpg`(47KB)・`public/images/hakase.jpg`(45KB)同梱
+  - アバターサイズを **46px → 70px**(モバイル 40px → 60px、約 1.5 倍化)
+  - 円形クリッピング(`border-radius: 50%` + `overflow: hidden`)
+  - `object-fit: cover` で画像を綺麗に正方形クリップ
+  - `loading="lazy"` で遅延読込
+
+### 内部
+- `<div class="dialogue-avatar">🧑‍🎓</div>` → `<div class="dialogue-avatar"><img src="images/kenta.jpg" alt="" loading="lazy"></div>`
+- ハカセ全 4 箇所・ケンタ全 4 箇所、計 8 個のアバターを画像化
+- `.dialogue-avatar img` スタイル追加(width/height 100% + object-fit + border-radius)
+- 🏷️ VERSION 3.0.0 → 3.1.0(MINOR、アバター刷新)
+
+---
+
 ## [3.0.0] - 2026-06-16
 
 ### 🎉 メジャーリリース — 試験公開版の双方向対応完成 (Phase 3b = Issue #10)
