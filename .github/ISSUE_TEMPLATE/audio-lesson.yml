@@ -8,11 +8,46 @@ body:
       value: |
         ## 使い方
         1. 下の欄に **日本語文 + 台湾華語(繁体字)文のペア** を入力(複数可、`---` 区切り)
-        2. Issue を起票したらコメントで「対応して」or Claude Code 起動
-        3. Claude Code が `prompts/zhtw-v4.md` を使って SSML を生成し、このIssueに貼る
-        4. 生成された SSML をコピー → [SSML MP3 Studio](https://djkinako.github.io/ssml-mp3-studio/) に貼って MP3 ダウンロード
+        2. **プロンプトモード**を選択(v4 = シンプル全部入り / v5-modular = モジュール式深掘り)
+        3. v5-modular なら **モジュール選択**(漢字書取/語彙/文法 のどれを出すか)
+        4. Issue を起票したらコメントで「対応して」or Claude Code 起動
+        5. Claude Code が指定モードで SSML を生成し、このIssueに貼る
+        6. 生成された SSML をコピー → [SSML MP3 Studio](https://djkinako.github.io/ssml-mp3-studio/) に貼って MP3 ダウンロード
 
         ※ MP3 生成は自動化されません(ブラウザで手作業)。これは vibe coding 流儀で意図的にシンプル化。
+
+  - type: dropdown
+    id: prompt-mode
+    attributes:
+      label: プロンプトモード (v1.2.0+)
+      description: |
+        どのプロンプトで生成するか選択。
+        - **v4(シンプル)**: 1 ペア = 1 SSML(例文→ヒント→正解→解説→リピート)
+        - **v5-modular(モジュール式)**: 1 ペア = 最大4ブロック(v4 ベース + 漢字書取 + 語彙 + 文法)、ながら聞き深掘り教材向き
+      options:
+        - "v5-modular(モジュール式・推奨)"
+        - "v4(シンプル全部入り)"
+      default: 0
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: modules
+    attributes:
+      label: 出力モジュール選択(v5-modular の時のみ有効)
+      description: |
+        v5-modular モードで、出力するモジュールを選ぶ。
+        全部チェックがデフォルト推奨(漢字書取↔語彙の連動が活きる)。
+        v4 モードを選んだ場合、この欄の選択は無視される。
+      options:
+        - label: "Phase 1: ベース SSML(例文→ヒント→正解→解説→リピート、必須)"
+          required: false
+        - label: "Phase 2: 漢字書取モジュール(コア4単語の書き方解説)"
+          required: false
+        - label: "Phase 3: 語彙深掘りモジュール(コア4単語の意味・派生・用法)"
+          required: false
+        - label: "Phase 4: 文法モジュール(構文・文末詞 最大3ポイント)"
+          required: false
 
   - type: textarea
     id: lesson-pairs
