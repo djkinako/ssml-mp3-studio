@@ -1,0 +1,416 @@
+#!/usr/bin/env bash
+# v5-modular-lint.sh — SSML モジュール式教材 投稿前チェッカー
+#
+# 設計書: tmp/v1.4.0-design/DESIGN.md ③
+# 用途: 各モジュール生成直後に走らせ、鬼門ワード/単独漢字/二度読み等の
+#       NG パターンを 1 秒以内に検出する。
+# 終了コード:
+#   0 = ヒットゼロ(OK、次モジュールへ進んでよい)
+#   1 = ヒットあり(NG、該当モジュール再生成必須)
+#   2 = 引数エラー / 内部エラー
+#
+# 使い方:
+#   bash scripts/v5-modular-lint.sh <ファイルパス>
+#   bash scripts/v5-modular-lint.sh --strict <ファイルパス>  # パターン7-8も実行
+#
+# 依存: bash / awk / sed / grep(BSD/GNU 両対応) のみ。
+#       UTF-8 範囲表現は BSD grep が対応してないので awk を使う。
+
+set -uo pipefail
+
+# ───────────────────────── ロケール統一 ─────────────────────────
+# UTF-8 範囲(`[一-鿿]` 等)を awk が正しくパースするためロケールを固定。
+# macOS BSD / Linux GNU 両環境で動作させる。
+if [[ -z "${LC_ALL:-}" ]]; then
+    if locale -a 2>/dev/null | grep -qx 'ja_JP.UTF-8'; then
+        export LC_ALL=ja_JP.UTF-8
+    elif locale -a 2>/dev/null | grep -qx 'en_US.UTF-8'; then
+        export LC_ALL=en_US.UTF-8
+    elif locale -a 2>/dev/null | grep -qx 'C.UTF-8'; then
+        export LC_ALL=C.UTF-8
+    else
+        export LC_ALL=ja_JP.UTF-8
+    fi
+fi
+
+# ───────────────────────── カラー定義 ─────────────────────────
+if [[ -t 1 ]] && [[ "${NO_COLOR:-}" == "" ]]; then
+    GREEN=$'\033[32m'
+    RED=$'\033[31m'
+    YELLOW=$'\033[33m'
+    BOLD=$'\033[1m'
+    DIM=$'\033[2m'
+    RESET=$'\033[0m'
+else
+    GREEN=""
+    RED=""
+    YELLOW=""
+    BOLD=""
+    DIM=""
+    RESET=""
+fi
+
+# ───────────────────────── 引数パース ─────────────────────────
+STRICT=0
+FILE=""
+for arg in "$@"; do
+    case "$arg" in
+        --strict)
+            STRICT=1
+            ;;
+        -h|--help)
+            cat <<EOF
+Usage: $0 [--strict] <file>
+
+  --strict   パターン7(Phase 0↔Phase 2/3 不一致照合)と
+             パターン8(効果音マーカー網羅)も実行する
+
+  デフォルトは1-6のみ高速モード(1秒以内完了)
+
+検出パターン:
+  [1] 鬼門ワード(ルールE): 画 / 字義 / 然り而して / 豈 / 几 / 疋 / N画 / 点がN個
+  [2] 単独漢字裸出し(ルールA): 「我」など、<lang> 外の地の文に単独漢字
+  [3] 二度読み禁止(ルールC): 「我々」(われわれ) のような読み付与
+  [4] 繋辞NG(v4 #3): </lang>です / </lang>だ。
+  [5] Markdown 強調(v4 #10): ** / __ / バッククォート単独
+  [6] 文法ポイント固定文化: 「文法ポイントは三つや」リテラル(動的化警告)
+  [7] Phase 0↔Phase 2/3 照合(--strict のみ): サマリ表4語と見出しの diff
+  [8] 効果音マーカー網羅(--strict のみ): <!-- explain --> 数 = <speak> 数
+
+終了コード: 0=OK, 1=NG, 2=エラー
+EOF
+            exit 0
+            ;;
+        *)
+            FILE="$arg"
+            ;;
+    esac
+done
+
+if [[ -z "$FILE" ]]; then
+    echo "${RED}ERROR: チェック対象ファイルを指定してな${RESET}" >&2
+    echo "Usage: $0 [--strict] <file>" >&2
+    exit 2
+fi
+
+if [[ ! -f "$FILE" ]]; then
+    echo "${RED}ERROR: ファイルが見つからん: $FILE${RESET}" >&2
+    exit 2
+fi
+
+# ───────────────────────── 集計用 ─────────────────────────
+NG_COUNT=0
+TOTAL_CHECKS=6
+[[ $STRICT -eq 1 ]] && TOTAL_CHECKS=8
+
+# 一時ファイル(<lang>剥がし版、コードフェンス潰し版、xml抽出版)
+TMP_NOLANG=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
+TMP_NOFENCE=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
+TMP_XML_ONLY=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
+trap 'rm -f "$TMP_NOLANG" "$TMP_NOFENCE" "$TMP_XML_ONLY" 2>/dev/null' EXIT
+
+# .md ファイルなら ```xml ... ``` ブロックだけ抽出して $FILE を差し替え。
+# Few-shot や Issue コメント等の Markdown 文書内でも、SSML 部分(```xml）
+# だけを lint 対象にする(メタテーブルや解説文の **強調** や単独漢字を誤検出しない)。
+EXT="${FILE##*.}"
+if [[ "$EXT" == "md" ]]; then
+    awk '/^```xml/{flag=1; next} /^```$/{flag=0; next} flag' "$FILE" > "$TMP_XML_ONLY"
+    if [[ -s "$TMP_XML_ONLY" ]]; then
+        printf "%s(.md ファイル: \`\`\`xml ブロックのみ検証)%s\n" "$DIM" "$RESET"
+        FILE="$TMP_XML_ONLY"
+    fi
+fi
+
+# <lang xml:lang="...">...</lang> と <sub alias="...">...</sub> を空文字に置換した版
+# (両方とも中身は「指定済みで TTS が正しく読む」ので、鬼門ワード・単独漢字検出から除外)
+sed -E -e 's#<lang[^>]*>[^<]*</lang>##g' -e 's#<sub[^>]*>[^<]*</sub>##g' "$FILE" > "$TMP_NOLANG"
+# Markdown コードフェンス(```...```)行を空行化した版
+sed -E 's/^```.*$//' "$FILE" > "$TMP_NOFENCE"
+
+# ───────────────────────── ヘルパー ─────────────────────────
+# print_ok <番号> <カテゴリ名>
+print_ok() {
+    printf "%s✅ [%d/%d] %s: OK%s\n" "$GREEN" "$1" "$TOTAL_CHECKS" "$2" "$RESET"
+}
+
+# print_ng <番号> <カテゴリ名> <ヒット数>
+print_ng() {
+    printf "%s❌ [%d/%d] %s: %d hits%s\n" "$RED" "$1" "$TOTAL_CHECKS" "$2" "$3" "$RESET"
+    NG_COUNT=$((NG_COUNT + 1))
+}
+
+# print_warn <番号> <カテゴリ名> <メッセージ>
+print_warn() {
+    printf "%s⚠️  [%d/%d] %s: %s%s\n" "$YELLOW" "$1" "$TOTAL_CHECKS" "$2" "$3" "$RESET"
+}
+
+# awk_count <ファイル> <awkパターン(/.../)抜きの正規表現本体>
+# UTF-8 多バイト対応のヒット行数を返す(awk 経由)
+awk_count() {
+    local file="$1"
+    local pattern="$2"
+    awk -v pat="$pattern" 'BEGIN{c=0} $0 ~ pat {c++} END{print c+0}' "$file" 2>/dev/null
+}
+
+# awk_show <ファイル> <パターン>
+# ヒット行を「   Lxx: text」形式で表示(120 文字で切り詰め)
+awk_show() {
+    local file="$1"
+    local pattern="$2"
+    local dim="$DIM"
+    local reset="$RESET"
+    awk -v pat="$pattern" -v dim="$dim" -v rst="$reset" '
+        $0 ~ pat {
+            line = $0
+            # 多バイト文字を考慮した「だいたい120文字」切り詰め
+            if (length(line) > 120) {
+                line = substr(line, 1, 120) "..."
+            }
+            printf "%s   L%d: %s%s\n", dim, NR, line, rst
+        }
+    ' "$file"
+}
+
+# ───────────────────────── ヘッダ ─────────────────────────
+printf "%s━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%s\n" "$BOLD" "$RESET"
+printf "%sv5-modular-lint%s — %s\n" "$BOLD" "$RESET" "$FILE"
+printf "%s━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%s\n" "$BOLD" "$RESET"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# [1/N] 鬼門ワード(ルールE)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - 「画」「字義」「然り而して」「豈」「几」「疋」「画数」「画が多い」「N画」「点がN個」
+# - 「画」字単独でも検出(画数の話に流れがちなため、地の文出禁)
+# - 検出対象: 元ファイル(<lang> 内に出ることはないが、念のため元ファイル全体)
+PATTERN_1='画|字義|然り而して|豈|几|疋|画数|画が多い|[0-9]+画|点が[0-9]+個'
+
+# <sub>/<lang> 内は読み指定済みなので除外した版($TMP_NOLANG)で検出
+HITS_1=$(awk_count "$TMP_NOLANG" "$PATTERN_1")
+if [[ "$HITS_1" -eq 0 ]]; then
+    print_ok 1 "鬼門ワード(ルールE)"
+else
+    print_ng 1 "鬼門ワード(ルールE)" "$HITS_1"
+    awk_show "$TMP_NOLANG" "$PATTERN_1"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# [2/N] 単独漢字裸出し(ルールA)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - 「我」「歷」「歸」みたいな単独漢字を、地の文の「カギカッコ」内に裸出ししてる
+# - <lang xml:lang="..."> タグ内は除外して判定(剥がし版 TMP_NOLANG で検査)
+# - パターン:
+#     ①  「X」 …カギカッコ内1漢字
+#     ②  >X<  …タグ間に1漢字(XML 整合性チェック)
+# - 「々」(U+3005)も漢字相当として補足(CJK Iteration Mark)
+# - 単独 1 文字のみマッチ(2 文字以上は OK = 「我々」「凱旋」等)
+#
+# 注: macOS BSD awk は CJK Han Unicode 範囲(U+4E00-U+9FFF)を字クラスで
+#     扱うとき、空の `「」` も誤マッチする既知バグがある。perl の
+#     明示 codepoint(`\x{4e00}-\x{9fff}`)なら正しく動くので Pattern 2 は
+#     perl 利用(macOS/Linux 標準同梱、Claude Code 環境で確実)。
+#
+# perl ワンライナー(`-CSAD` で stdin/stdout/stderr/@ARGV を UTF-8 扱い)
+# 引数: <ファイル> <モード:count|show>
+perl_check_pattern2() {
+    local file="$1"
+    local mode="$2"
+    LINT_MODE="$mode" LINT_DIM="$DIM" LINT_RESET="$RESET" \
+    perl -CSAD -ne '
+        BEGIN {
+            $count = 0;
+            $dim   = $ENV{LINT_DIM}   || "";
+            $rst   = $ENV{LINT_RESET} || "";
+            $mode  = $ENV{LINT_MODE}  || "count";
+        }
+        my $hit = 0;
+        # ① 「<1漢字>」(カギカッコ内1漢字、々(U+3005)含む)
+        # ② >X< (タグ間1漢字)
+        if (/\x{300c}[\x{4e00}-\x{9fff}\x{3005}]\x{300d}/
+            || />[\x{4e00}-\x{9fff}\x{3005}]</) {
+            $count++;
+            $hit = 1;
+        }
+        if ($mode eq "show" && $hit) {
+            chomp(my $disp = $_);
+            if (length($disp) > 120) { $disp = substr($disp, 0, 120) . "..."; }
+            printf "%s   L%d: %s%s\n", $dim, $., $disp, $rst;
+        }
+        END { print $count, "\n" if $mode eq "count"; }
+    ' "$file"
+}
+
+HITS_2=$(perl_check_pattern2 "$TMP_NOLANG" count)
+HITS_2=$(printf '%s' "$HITS_2" | tr -d '[:space:]')
+[[ -z "$HITS_2" ]] && HITS_2=0
+
+if [[ "$HITS_2" -eq 0 ]]; then
+    print_ok 2 "単独漢字裸出し(ルールA)"
+else
+    print_ng 2 "単独漢字裸出し(ルールA)" "$HITS_2"
+    perl_check_pattern2 "$TMP_NOLANG" show
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# [3/N] 二度読み禁止(ルールC)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - 「我々」(われわれ) / 「歴」(れき) のような、漢字直後にひらがな読み付与
+# - 全角括弧 「X」（よみ） / 半角括弧 「X」(よみ) 両対応
+# - ひらがな範囲は U+3041(ぁ) 〜 U+3093(ん)
+# - 注: awk -v で渡すとき `\(` は awk の文字列エスケープで `(` になり regex グループ
+#       扱いになるため、`\\(` と二重エスケープして「リテラル `(`」を意図する
+PATTERN_3='「[一-鿿々]+」（[ぁ-ん]+）|「[一-鿿々]+」\\([ぁ-ん]+\\)'
+
+HITS_3=$(awk_count "$FILE" "$PATTERN_3")
+if [[ "$HITS_3" -eq 0 ]]; then
+    print_ok 3 "二度読み禁止(ルールC)"
+else
+    print_ng 3 "二度読み禁止(ルールC)" "$HITS_3"
+    awk_show "$FILE" "$PATTERN_3"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# [4/N] 繋辞NG(v4 セルフレビュー#3)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - </lang>直後に「です」「だ。」が来ると、TTS が中国語読みのまま日本語繋辞で
+#   不自然な接続になる
+# - 推奨: 「やな」「ということやで」のような関西弁ブリッジを介する
+PATTERN_4='</lang>です|</lang>だ。'
+
+HITS_4=$(awk_count "$FILE" "$PATTERN_4")
+if [[ "$HITS_4" -eq 0 ]]; then
+    print_ok 4 "繋辞NG(v4 #3)"
+else
+    print_ng 4 "繋辞NG(v4 #3)" "$HITS_4"
+    awk_show "$FILE" "$PATTERN_4"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# [5/N] Markdown 強調記号(v4 セルフレビュー#10)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - **強調** / __強調__ / `code` は SSML 中に出ると TTS が読み上げる/XML 不整合
+# - コードフェンス ```...``` 行は除外して検査(TMP_NOFENCE)
+# - 検出対象: ** / __ / シングルバッククォート
+# - 注: awk -v 経由なので `\*` は二重エスケープ必須(`\\*` → awk 文字列 `\*` →
+#       regex リテラル `*`)
+PATTERN_5='\\*\\*|__|`'
+
+HITS_5=$(awk_count "$TMP_NOFENCE" "$PATTERN_5")
+if [[ "$HITS_5" -eq 0 ]]; then
+    print_ok 5 "Markdown強調記号(v4 #10)"
+else
+    print_ng 5 "Markdown強調記号(v4 #10)" "$HITS_5"
+    awk_show "$TMP_NOFENCE" "$PATTERN_5"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# [6/N] 文法ポイント固定文化警告(Phase 4 動的化)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - 「文法ポイントは三つや」リテラル検出
+# - 設計書④ Phase 4 改修: 短文ペア(20字以下)で 3 ポイント水増しを防ぐ
+# - 本当に 3 ポイントあるなら問題ないが、目視確認を促す
+PATTERN_6='文法ポイントは三つや'
+
+HITS_6=$(awk_count "$FILE" "$PATTERN_6")
+if [[ "$HITS_6" -eq 0 ]]; then
+    print_ok 6 "文法ポイント固定文化(Phase 4 動的化)"
+else
+    print_ng 6 "文法ポイント固定文化(Phase 4 動的化)" "$HITS_6"
+    awk_show "$FILE" "$PATTERN_6"
+    printf "%s   ↑ 本当に 3 ポイントあるか確認。短文ペアなら 2 つに減らす、" "$YELLOW"
+    printf "または「ポイントを見ていくで」に動的化を検討%s\n" "$RESET"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# [7/N] Phase 0 ↔ Phase 2/3 不一致照合(--strict のみ)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - Phase 0 の「| ペア | 単語1 | 単語2 | 単語3 | 単語4 |」表の単語と、
+#   Phase 2/3 の <lang xml:lang="cmn-TW">X</lang> に登場する単語を照合
+# - 構造的整合性チェック、誤検出余地があるので --strict 限定
+if [[ $STRICT -eq 1 ]]; then
+    # Phase 0 表の単語抽出
+    PHASE0_WORDS=$(awk '
+        /\| *ペア *\| *単語1/ { in_table=1; next }
+        in_table && /^\|/ {
+            n = split($0, cells, "|")
+            for (i = 3; i <= n - 1; i++) {
+                gsub(/^[ \t]+|[ \t]+$/, "", cells[i])
+                if (cells[i] != "" && cells[i] !~ /^---/ && cells[i] !~ /^[0-9]+$/) {
+                    print cells[i]
+                }
+            }
+            next
+        }
+        in_table && !/^\|/ { in_table=0 }
+    ' "$FILE" | sort -u)
+
+    # Phase 2/3 に登場する <lang xml:lang="cmn-TW">単語</lang> を抽出
+    PHASE23_WORDS=$(awk '
+        {
+            s = $0
+            while (match(s, /<lang xml:lang="cmn-TW">[^<]+<\/lang>/)) {
+                hit = substr(s, RSTART, RLENGTH)
+                sub(/^<lang[^>]*>/, "", hit)
+                sub(/<\/lang>$/, "", hit)
+                print hit
+                s = substr(s, RSTART + RLENGTH)
+            }
+        }
+    ' "$FILE" | sort -u)
+
+    # Phase 0 にあるが Phase 2/3 にない単語を抽出
+    MISSING=""
+    if [[ -n "$PHASE0_WORDS" ]]; then
+        while IFS= read -r word; do
+            if [[ -n "$word" ]]; then
+                if ! printf '%s\n' "$PHASE23_WORDS" | grep -qF -- "$word"; then
+                    MISSING="${MISSING}${word}"$'\n'
+                fi
+            fi
+        done <<< "$PHASE0_WORDS"
+    fi
+
+    if [[ -z "$PHASE0_WORDS" ]]; then
+        print_warn 7 "Phase 0↔Phase 2/3 照合" "Phase 0 表が見つからず照合スキップ"
+    elif [[ -z "$MISSING" ]]; then
+        print_ok 7 "Phase 0↔Phase 2/3 照合"
+    else
+        miss_count=$(printf '%s' "$MISSING" | awk 'NF{c++} END{print c+0}')
+        print_ng 7 "Phase 0↔Phase 2/3 照合" "$miss_count"
+        printf "%s   Phase 0 表にあるが Phase 2/3 に出てこん単語:%s\n" "$DIM" "$RESET"
+        printf '%s' "$MISSING" | while IFS= read -r m; do
+            [[ -n "$m" ]] && printf "%s   - %s%s\n" "$DIM" "$m" "$RESET"
+        done
+    fi
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # [8/N] 効果音マーカー網羅(--strict のみ)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # - <!-- explain --> マーカー数と <speak> ブロック数の一致
+    MARKER_COUNT=$(awk_count "$FILE" '<!-- explain -->')
+    SPEAK_COUNT=$(awk_count "$FILE" '<speak>')
+
+    if [[ "$SPEAK_COUNT" -eq 0 ]]; then
+        print_warn 8 "効果音マーカー網羅" "<speak> ブロックなし、照合スキップ"
+    elif [[ "$MARKER_COUNT" -eq "$SPEAK_COUNT" ]]; then
+        print_ok 8 "効果音マーカー網羅($MARKER_COUNT / $SPEAK_COUNT)"
+    else
+        DIFF=$((SPEAK_COUNT - MARKER_COUNT))
+        [[ $DIFF -lt 0 ]] && DIFF=$((-DIFF))
+        print_ng 8 "効果音マーカー網羅" "$DIFF"
+        printf "%s   <speak> ブロック数=%d, <!-- explain --> マーカー数=%d%s\n" \
+            "$DIM" "$SPEAK_COUNT" "$MARKER_COUNT" "$RESET"
+    fi
+fi
+
+# ───────────────────────── サマリ ─────────────────────────
+echo ""
+printf "%s━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━%s\n" "$BOLD" "$RESET"
+if [[ "$NG_COUNT" -eq 0 ]]; then
+    printf "%s%sOK: 全 %d カテゴリでヒットゼロや。次のモジュールへ進んでええで✨%s\n" \
+        "$GREEN" "$BOLD" "$TOTAL_CHECKS" "$RESET"
+    exit 0
+else
+    printf "%s%sNG: %d カテゴリで検出。該当モジュールを再生成してな🔥%s\n" \
+        "$RED" "$BOLD" "$NG_COUNT" "$RESET"
+    exit 1
+fi
