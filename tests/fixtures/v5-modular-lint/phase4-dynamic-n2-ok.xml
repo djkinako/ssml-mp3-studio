@@ -1,0 +1,18 @@
+<!--
+  Fixture: phase4-dynamic-n2-ok.xml
+  期待動作: exit 0(ホワイトリスト効果で「Nつや」明示があれば素通し)
+  目的: 設計書 ① 1.2 Critical #1 反映「ホワイトリスト方式」の正当表現確認
+  関連: PATTERN_6B (default lint で実行)
+-->
+<speak>
+<!-- explain -->
+<lang xml:lang="cmn-TW">他今天好像會帶把傘吧</lang><break time="800ms"/>
+ちょっと長めの例文やから、ここから文法ポイント2つ拾うで。<break time="500ms"/>
+文法ポイントは2つや。<break time="800ms"/>
+ひとつ目、<lang xml:lang="cmn-TW">好像</lang>は「〜みたいや」って推量の副詞や。話し手が確信は持ってないけど、外見やら状況やらから推測してるニュアンスを出すで。<break time="500ms"/>
+ふたつ目、文末の<lang xml:lang="cmn-TW">吧</lang>は同意確認の語気助詞や。「〜やろ?」「〜やんな?」って相手にちょっと押し付けるトーンになる。<break time="500ms"/>
+そのポイントを見ていくで。これは正当表現や(N つ明示済み)。<break time="500ms"/>
+それじゃ、もっかい繰り返すで。<break time="500ms"/>
+<lang xml:lang="cmn-TW">他今天好像會帶把傘吧</lang><break time="500ms"/>
+<lang xml:lang="cmn-TW">他今天好像會帶把傘吧</lang><break time="2s"/>
+</speak>

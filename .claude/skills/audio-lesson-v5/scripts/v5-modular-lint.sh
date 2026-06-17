@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # v5-modular-lint.sh — SSML モジュール式教材 投稿前チェッカー
 #
-# 設計書: tmp/v1.4.0-design/DESIGN.md ③
+# 設計書: tmp/v1.5.1-design/DESIGN.md ①(v1.5.1 改修)
 # 用途: 各モジュール生成直後に走らせ、鬼門ワード/単独漢字/二度読み等の
 #       NG パターンを 1 秒以内に検出する。
 # 終了コード:
@@ -11,9 +11,15 @@
 #
 # 使い方:
 #   bash scripts/v5-modular-lint.sh <ファイルパス>
-#   bash scripts/v5-modular-lint.sh --strict <ファイルパス>  # パターン7-8も実行
+#   bash scripts/v5-modular-lint.sh --strict <ファイルパス>  # パターン11-12 + PATTERN_6C
 #
-# 依存: bash / awk / sed / grep(BSD/GNU 両対応) のみ。
+# v1.5.1 改修(本ファイル):
+#   - PATTERN_6B 追加: 「文法ポイント、見ていくで」逃げ表現検出
+#                      (ホワイトリスト方式: 「N つ」明示があれば素通し)
+#   - PATTERN_6C 追加(--strict のみ): Phase 4 限定スコープで
+#                      「短文(例文 ≦9 codepoint)+ 3点固定(ひと/ふた/みっつ目)」検出
+#
+# 依存: bash / awk / sed / grep / perl(BSD/GNU 両対応) のみ。
 #       UTF-8 範囲表現は BSD grep が対応してないので awk を使う。
 
 set -uo pipefail
@@ -62,11 +68,12 @@ for arg in "$@"; do
             cat <<'EOF'
 Usage: v5-modular-lint.sh [--strict] <file>
 
-  --strict   パターン11(Phase 0↔Phase 2/3 不一致照合)と
-             パターン12(効果音マーカー網羅)も実行する
-             ※注: v1.4.x までは 7/8 だったが v1.5.0 で 11/12 に番号繰り下げ
+  --strict   パターン11(Phase 0↔Phase 2/3 不一致照合)・
+             パターン12(効果音マーカー網羅)・
+             パターン13(★v1.5.1★ PATTERN_6C 短文+3点固定 Phase 4 限定)を実行
+             ※注: v1.4.x までは 7/8 だったが v1.5.0 で 11/12 に繰り下げ、v1.5.1 で 13 追加
 
-  デフォルトは 1-10 (1秒以内完了)
+  デフォルトは 1-10 + 6B (1秒以内完了)
 
 検出パターン:
   [1]  鬼門ワード(ルールE): 画 / 字義 / 然り而して / 豈 / 几 / 疋 / N画 / 点がN個
@@ -75,13 +82,17 @@ Usage: v5-modular-lint.sh [--strict] <file>
   [3]  二度読み禁止(ルールC): 「我々」(われわれ) のような読み付与
   [4]  繋辞NG(v4 #3): </lang>です / </lang>だ。
   [5]  Markdown 強調(v4 #10): ** / __ / バッククォート単独
-  [6]  文法ポイント固定文化: 「文法ポイントは三つや」リテラル(動的化警告)
+  [6]  文法ポイント逃げ表現(★v1.5.1 PATTERN_6B 統合★):
+       - 「文法ポイントは三つや」リテラル(従来 PATTERN_6)
+       - 「文法ポイント、見ていくで」逃げ表現(新 PATTERN_6B、ホワイトリスト方式)
   [7]  ★v1.5.0★ 部首名混入(構成解説禁止): ニンベンに/サンズイに/まだれ/しんにょう/もんがまえ 等
   [8]  ★v1.5.0★ 構成位置混入(構成解説禁止): 上に「X」下に / 左右 / 真ん中に / 上下に / 中に
   [9]  ★v1.5.0★ 印象表現混入(字形描写禁止): ごっつい / 線多め / ぎゅっと詰まった / 骨太 / 縦長
   [10] ★v1.5.0★ 古字部品 <sub alias> 引用: <sub alias="アニ">豈</sub> 等(部品引用そのものを禁止)
   [11] Phase 0↔Phase 2/3 照合(--strict のみ): サマリ表4語と見出しの diff
   [12] 効果音マーカー網羅(--strict のみ): <!-- explain --> 数 = <speak> 数
+  [13] ★v1.5.1★ PATTERN_6C 短文+3点固定(--strict のみ):
+       Phase 4 セクションで「例文 ≦9 codepoint かつ ひとつ目/ふたつ目/みっつ目 全出現」を検出
 
 終了コード: 0=OK, 1=NG, 2=エラー
 EOF
@@ -110,10 +121,13 @@ fi
 #   10 構成位置混入(上に○下に○、左右、真ん中、上下)
 #   11 印象表現混入(ごっつい/線多め/ぎゅっと/がっつり)
 #   12 古字部品 <sub alias> 引用(豈/几/疋/巴/兌/挖/穴)
-# → デフォルト 10、--strict 12
+# v1.5.1: PATTERN_6B(default) + PATTERN_6C(strict) 追加
+#   6B カウントはチェック [6/N] と同じ枠で実行(NG_COUNT のみ加算、TOTAL は据置)
+#   13 PATTERN_6C 短文+3点固定(--strict のみ、Phase 4 限定スコープ)
+# → デフォルト 10、--strict 13
 NG_COUNT=0
 TOTAL_CHECKS=10
-[[ $STRICT -eq 1 ]] && TOTAL_CHECKS=12
+[[ $STRICT -eq 1 ]] && TOTAL_CHECKS=13
 
 # 一時ファイル(<lang>剥がし版、コードフェンス潰し版、xml抽出版、メタ領域版)
 TMP_NOLANG=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
@@ -375,6 +389,62 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# [6B/N] ★v1.5.1★ 文法ポイント逃げ表現検出(ホワイトリスト方式)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# - 設計書 ① 1.2「★Critical #1 反映:ホワイトリスト方式★」
+# - 問題: 単純な「文法ポイント、見ていくで」検出は 1ポイント時の正当表現を殺す
+#         偽陽性爆弾(例:「文法ポイントは1つや」「文法ポイントは2つや」)
+# - 対策: ホワイトリスト方式 二段階 awk
+#   Step 1: ホワイトリスト(「N つ」明示)にヒットしたら素通し
+#   Step 2: 上記にヒットしなかった行のみ「逃げ表現」検出
+# - 「N つ」表現が無いまま「文法ポイント、見ていくで」「ポイントを紹介する」と
+#   する逃げ表現は禁止(数を明示しろ動的化)
+# - 動詞バリエ網羅: 見ていく/紹介する/解説する/扱う/取り上げる/確認する/
+#                   チェックする/押さえる/拾う/追う/探る
+# - ポイント類語: 文法ポイント / 文法のポイント / 文法の見どころ / 文法の要点 / 文法の勘所
+#
+# 注: awk -v で渡す regex は二重エスケープ不要(直接 awk の `~` 評価に乗る)
+PATTERN_6B_WHITELIST='文法ポイント.{0,15}(一|二|三|四|五|1|2|3|4|5|N|ひと|ふた|みっ|よっ|いつ|N|n)つ'
+PATTERN_6B='(文法ポイント|文法の(ポイント|見どころ|要点|勘所))(、|,|を)?.{0,5}(見ていく|紹介する|解説する|扱う|取り上げる|確認する|チェックする|押さえる|拾う|追う|探る)(で|わ|な|よ)?'
+
+# awk 二段階関数: ホワイトリストにヒットすれば素通し、ヒットしなければ PATTERN_6B チェック
+awk_count_phase4b() {
+    awk -v wl="$PATTERN_6B_WHITELIST" -v pat="$PATTERN_6B" '
+        BEGIN { c=0 }
+        $0 ~ wl { next }
+        $0 ~ pat { c++ }
+        END { print c+0 }
+    ' "$1"
+}
+
+# 二段階表示関数(NG 時のヒット行表示用)
+awk_show_phase4b() {
+    awk -v wl="$PATTERN_6B_WHITELIST" -v pat="$PATTERN_6B" -v dim="$DIM" -v rst="$RESET" '
+        $0 ~ wl { next }
+        $0 ~ pat {
+            line = $0
+            if (length(line) > 120) {
+                line = substr(line, 1, 120) "..."
+            }
+            printf "%s   L%d: %s%s\n", dim, NR, line, rst
+        }
+    ' "$1"
+}
+
+HITS_6B=$(awk_count_phase4b "$FILE")
+if [[ "$HITS_6B" -eq 0 ]]; then
+    printf "%s✅ [6B/%d] 文法ポイント逃げ表現(v1.5.1 PATTERN_6B): OK%s\n" \
+        "$GREEN" "$TOTAL_CHECKS" "$RESET"
+else
+    printf "%s❌ [6B/%d] 文法ポイント逃げ表現(v1.5.1 PATTERN_6B): %d hits%s\n" \
+        "$RED" "$TOTAL_CHECKS" "$HITS_6B" "$RESET"
+    NG_COUNT=$((NG_COUNT + 1))
+    awk_show_phase4b "$FILE"
+    printf "%s   ↑ 「文法ポイント、見ていくで」は逃げ表現。" "$YELLOW"
+    printf "「文法ポイントはNつや」とNを明示しろ(動的化)%s\n" "$RESET"
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # [7/N] ★v1.5.0★ 部首名混入(構成解説禁止 — 設計書 ② 削除対象 #1)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # - 旧 Phase 2(漢字書取モジュール)で「ニンベンに門」「サンズイに青」のような
@@ -536,6 +606,104 @@ if [[ $STRICT -eq 1 ]]; then
         printf "%s   <speak> ブロック数=%d, <!-- explain --> マーカー数=%d%s\n" \
             "$DIM" "$SPEAK_COUNT" "$MARKER_COUNT" "$RESET"
     fi
+
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # [13/N] ★v1.5.1★ PATTERN_6C: 短文+3点固定検出(Phase 4 限定・--strict のみ)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # - 設計書 ① 1.3「★Critical #2 反映:Phase 4 限定スコープ★」
+    # - 問題: 短い例文(≦9 codepoint)に対して「ひとつ目」「ふたつ目」「みっつ目」を
+    #         水増しして 3 ポイント無理矢理出すパターンを検出
+    # - スコープ: Phase 4 セクション限定
+    #   - .xml ファイル: ファイル全体を Phase 4 として扱う
+    #   - .md ファイル: '### Phase 4:' 〜 次の '###' or '---' までを awk range で切り出す
+    # - 例文長判定:
+    #   - Phase 4 末尾リピート行の <lang xml:lang="cmn-TW">...</lang> 中身を抽出
+    #   - perl -CSD で codepoint カウント(句読点・空白除外)
+    #   - 9 codepoint 以下を「短文」と定義
+    # - 3点固定検出: Phase 4 範囲内で「ひとつ目」「ふたつ目」「みっつ目」全出現
+    #
+    # 注: Phase 4 範囲が見つからない / 例文が見つからない場合は SKIP(warn)
+    TMP_PHASE4=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
+
+    # Phase 4 セクション抽出
+    # - .xml: 既に xml なのでファイル全体を Phase 4 と見なす
+    # - .md: '### Phase 4' から次の '###' or '---' or '## ' まで
+    if [[ "${EXT}" == "md" ]] || [[ $IS_MD_FILE -eq 1 ]]; then
+        # .md 由来時は ORIG_FILE から Phase 4 抽出(TMP_XML_ONLY だと既に xml だけ)
+        # ただしホストの ORIG_FILE = .md なので、ORIG_FILE から抽出する
+        awk '
+            /^### Phase 4:/ { flag=1; print; next }
+            flag && /^### / { flag=0; next }
+            flag && /^## / { flag=0; next }
+            flag && /^---/ { flag=0; next }
+            flag { print }
+        ' "$ORIG_FILE" > "$TMP_PHASE4"
+    else
+        # .xml ファイル: 全体を Phase 4 として扱う
+        cp "$FILE" "$TMP_PHASE4"
+    fi
+
+    if [[ ! -s "$TMP_PHASE4" ]]; then
+        print_warn 13 "PATTERN_6C 短文+3点固定検出(v1.5.1)" "Phase 4 セクション抽出失敗、スキップ"
+    else
+        # 末尾リピート行の <lang xml:lang="cmn-TW">...</lang> 中身を抽出(複数行対応)
+        # 一行に複数の <lang> がある場合、全部の中身をまとめる
+        LANG_CONTENT=$(perl -CSAD -ne '
+            while (/<lang\s+xml:lang="cmn-TW">([^<]+)<\/lang>/g) {
+                print "$1\n";
+            }
+        ' "$TMP_PHASE4")
+
+        # 例文長判定: 最も長い <lang> 内容を「例文」とみなす(リピート行は同じ例文の繰り返し)
+        # 句読点・空白除外で codepoint カウント
+        EXAMPLE_LEN=0
+        if [[ -n "$LANG_CONTENT" ]]; then
+            EXAMPLE_LEN=$(printf '%s' "$LANG_CONTENT" | perl -CSAD -e '
+                my $max = 0;
+                while (my $line = <STDIN>) {
+                    chomp $line;
+                    # 句読点・空白除去(全角/半角)
+                    $line =~ s/[，。、！？\s,.\!\?]//g;
+                    my $len = length($line);
+                    $max = $len if $len > $max;
+                }
+                print $max;
+            ')
+        fi
+
+        # 3点固定検出: Phase 4 範囲内で「ひとつ目」「ふたつ目」「みっつ目」全出現
+        HAS_HITOTSUME=$(awk '/ひとつ目/ {c++} END {print c+0}' "$TMP_PHASE4")
+        HAS_FUTATSUME=$(awk '/ふたつ目/ {c++} END {print c+0}' "$TMP_PHASE4")
+        HAS_MITTSUME=$(awk '/みっつ目/ {c++} END {print c+0}' "$TMP_PHASE4")
+
+        ALL_THREE=0
+        if [[ "$HAS_HITOTSUME" -gt 0 ]] && [[ "$HAS_FUTATSUME" -gt 0 ]] && [[ "$HAS_MITTSUME" -gt 0 ]]; then
+            ALL_THREE=1
+        fi
+
+        # 判定: 短文 (≦9) かつ 3点全出現
+        if [[ "$EXAMPLE_LEN" -eq 0 ]]; then
+            print_warn 13 "PATTERN_6C 短文+3点固定検出(v1.5.1)" \
+                "Phase 4 内に <lang> 例文なし、スキップ"
+        elif [[ "$EXAMPLE_LEN" -le 9 ]] && [[ "$ALL_THREE" -eq 1 ]]; then
+            NG_COUNT=$((NG_COUNT + 1))
+            printf "%s❌ [13/%d] PATTERN_6C 短文+3点固定検出(v1.5.1): 短文(%d cp)+3点固定%s\n" \
+                "$RED" "$TOTAL_CHECKS" "$EXAMPLE_LEN" "$RESET"
+            printf "%s   例文長: %d codepoint(≦9 = 短文判定)、" "$DIM" "$EXAMPLE_LEN"
+            printf "ひとつ目/ふたつ目/みっつ目 全部出現%s\n" "$RESET"
+            printf "%s   ↑ 短い例文に 3 ポイント水増しは禁止。" "$YELLOW"
+            printf "Phase 4 で 2 ポイントに減らすか動的化を検討%s\n" "$RESET"
+        else
+            if [[ "$EXAMPLE_LEN" -gt 9 ]]; then
+                printf "%s✅ [13/%d] PATTERN_6C 短文+3点固定検出(v1.5.1): OK(例文 %d cp > 9 = 長文)%s\n" \
+                    "$GREEN" "$TOTAL_CHECKS" "$EXAMPLE_LEN" "$RESET"
+            else
+                printf "%s✅ [13/%d] PATTERN_6C 短文+3点固定検出(v1.5.1): OK(短文だが3点固定なし)%s\n" \
+                    "$GREEN" "$TOTAL_CHECKS" "$RESET"
+            fi
+        fi
+    fi
+    rm -f "$TMP_PHASE4" 2>/dev/null
 fi
 
 # ───────────────────────── サマリ ─────────────────────────

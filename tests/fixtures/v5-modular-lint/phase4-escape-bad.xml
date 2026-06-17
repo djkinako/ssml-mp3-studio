@@ -1,0 +1,19 @@
+<!--
+  Fixture: phase4-escape-bad.xml
+  期待: exit 1 (文法ポイント逃げ表現を検出)
+  目的: 設計書 ① 1.2 Critical #1 反映「ホワイトリスト方式」の負例側
+  関連: PATTERN_6B (default lint で実行)
+  注: 「N つ」明示なし → ホワイトリスト素通し対象外 → 逃げ表現として捕捉される
+-->
+<speak>
+<!-- explain -->
+<lang xml:lang="cmn-TW">他今天好像會帶把傘</lang><break time="800ms"/>
+ちょっと長めの例文や、文法ポイントを順番に見ていこか。<break time="500ms"/>
+文法ポイント、見ていくで。<break time="800ms"/>
+ひとつ目、<lang xml:lang="cmn-TW">好像</lang>は「〜みたいや」って推量の副詞や。<break time="500ms"/>
+ふたつ目、<lang xml:lang="cmn-TW">會</lang>は未来の可能性を示す助動詞や。<break time="500ms"/>
+みっつ目、<lang xml:lang="cmn-TW">帶把傘</lang>は「傘を持ってる」って動詞 + 量詞 + 名詞の構造や。<break time="500ms"/>
+それじゃ、もっかい繰り返すで。<break time="500ms"/>
+<lang xml:lang="cmn-TW">他今天好像會帶把傘</lang><break time="500ms"/>
+<lang xml:lang="cmn-TW">他今天好像會帶把傘</lang><break time="2s"/>
+</speak>

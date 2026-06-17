@@ -1,0 +1,18 @@
+<!--
+  Fixture: phase4-shortexample-3points-bad.xml
+  期待: --strict で exit 1 (PATTERN_6C 検出)、default で exit 0
+  目的: 設計書 ① 1.3 Critical #2 PATTERN_6C(Phase 4 限定スコープ)の追加自己検証
+  注: 短文(<lang> 中身 ≦9 codepoint)で「ひとつ目/ふたつ目/みっつ目」全出現の負例
+  関連: --strict 限定なので default lint には影響ゼロ
+-->
+<speak>
+<!-- explain -->
+<lang xml:lang="cmn-TW">下雨啊</lang><break time="800ms"/>
+短い例文や、文法ポイントは3つや。<break time="800ms"/>
+ひとつ目、<lang xml:lang="cmn-TW">下</lang>は動詞「降る」や。<break time="500ms"/>
+ふたつ目、<lang xml:lang="cmn-TW">雨</lang>は名詞「雨」や。<break time="500ms"/>
+みっつ目、文末の<lang xml:lang="cmn-TW">啊</lang>は感嘆の語気助詞や。<break time="500ms"/>
+それじゃ、もっかい繰り返すで。<break time="500ms"/>
+<lang xml:lang="cmn-TW">下雨啊</lang><break time="500ms"/>
+<lang xml:lang="cmn-TW">下雨啊</lang><break time="2s"/>
+</speak>
