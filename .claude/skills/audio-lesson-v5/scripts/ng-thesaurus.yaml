@@ -1,0 +1,174 @@
+# v1.6.0 PATTERN_13: 既知 NG 熟語辞書(リテラルのみ・メタ文字禁止)
+#
+# 設計書: tmp/v1.6.0-design/DESIGN.md ④
+# 用途: lint.sh PATTERN_13 で参照、台湾華語として不自然な熟語を grep -F 検出
+#
+# 制約:
+#   - リテラル熟語のみ(部分文字列マッチでなく word 一致でもなく、grep -F で部分一致)
+#   - メタ文字禁止: . ( ) * + ? [ ] { } | \ ^ $
+#     → 含めば lint 自体が起動拒否(yaml 読み込み時バリデーション)
+#   - 上限 100 語
+#   - カテゴリ毎 30 語
+#
+# カテゴリ:
+#   taiwanese-unnatural: 文法的に通じるが台湾華語として違和感のある言い回し
+#   mainland-only:       大陸固有の言い回し(台湾では使わない or 別語あり)
+#   japanese-only:       日本固有の表現を中国語に直訳しただけのもの
+#
+# 追加プロセス:
+#   1. Issue #22 のような評価で実例観測
+#   2. 林老師(native-checker-v1)の判定で needs_changes が複数回出る語
+#   3. evidence(根拠 URL or Issue 番号)必須
+#   4. replacement_examples を 1 個以上提示
+#
+# allowlist との関係:
+#   - Issue 本文 / Phase 0 サマリ表に登場する語は --allowlist 経由でスルー
+#   - 「衆議院」「博多」のような固有名詞・学習対象は allowlist で構造的に弾く
+
+ng_thesaurus:
+  # ─── taiwanese-unnatural(台湾華語として不自然) ───
+  - word: "在班上"
+    category: "taiwanese-unnatural"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "Issue #22 v1.5.0 出力で混入、本来は『在班裡』が標準。書面語チックで口語不自然"
+    replacement_examples:
+      - "在班裡"
+      - "在班級裡"
+
+  - word: "搞活動"
+    category: "taiwanese-unnatural"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "『搞』は台湾華語では低俗ニュアンス、『辦活動』が標準"
+    replacement_examples:
+      - "辦活動"
+      - "舉辦活動"
+
+  # ─── mainland-only(大陸固有の言い回し) ───
+  - word: "視頻"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸用語、台湾では『影片』が標準"
+    replacement_examples:
+      - "影片"
+      - "影像"
+
+  - word: "公交車"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸用語、台湾では『公車』が標準"
+    replacement_examples:
+      - "公車"
+
+  - word: "愛心專座"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸では『愛心專座』、台湾では『博愛座』が一般的"
+    replacement_examples:
+      - "博愛座"
+
+  - word: "出租車"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸用語、台湾では『計程車』が標準"
+    replacement_examples:
+      - "計程車"
+
+  - word: "信息"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸用語、台湾では『訊息』『消息』が標準"
+    replacement_examples:
+      - "訊息"
+      - "消息"
+
+  - word: "土豆"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸では『じゃがいも』、台湾では『落花生』。台湾でのじゃがいもは『馬鈴薯』"
+    replacement_examples:
+      - "馬鈴薯"
+
+  - word: "西紅柿"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸用語、台湾では『番茄』が標準"
+    replacement_examples:
+      - "番茄"
+
+  - word: "鼠標"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸 IT 用語、台湾では『滑鼠』が標準"
+    replacement_examples:
+      - "滑鼠"
+
+  - word: "軟件"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸 IT 用語、台湾では『軟體』が標準"
+    replacement_examples:
+      - "軟體"
+
+  - word: "硬件"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸 IT 用語、台湾では『硬體』が標準"
+    replacement_examples:
+      - "硬體"
+
+  - word: "網絡"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸 IT 用語、台湾では『網路』が標準"
+    replacement_examples:
+      - "網路"
+
+  - word: "質量"
+    category: "mainland-only"
+    added_by: "Lin-Laoshi"
+    added_at: "2026-06-17"
+    evidence: "大陸では『品質』の意で使うが、台湾では物理用語の『質量(mass)』。台湾の品質は『品質』"
+    replacement_examples:
+      - "品質"
+
+  # ─── japanese-only(日本固有表現の直訳) ───
+  - word: "聯合艦隊"
+    category: "japanese-only"
+    added_by: "Workflow-review"
+    added_at: "2026-06-17"
+    evidence: "日本側固有名詞(旧海軍)、台湾華語の派生語として不適切"
+    replacement_examples:
+      - "聯絡"
+      - "聯邦"
+      - "聯盟"
+
+  - word: "新撰組"
+    category: "japanese-only"
+    added_by: "Workflow-review"
+    added_at: "2026-06-17"
+    evidence: "日本固有の歴史用語、派生語として不適切"
+    replacement_examples:
+      - "新人"
+      - "新成員"
+
+  - word: "侍道"
+    category: "japanese-only"
+    added_by: "Workflow-review"
+    added_at: "2026-06-17"
+    evidence: "日本固有概念、台湾華語では一般語化していない"
+    replacement_examples:
+      - "武士"
+      - "武道"
