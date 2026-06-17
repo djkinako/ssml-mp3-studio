@@ -103,20 +103,35 @@ NG_COUNT=0
 TOTAL_CHECKS=6
 [[ $STRICT -eq 1 ]] && TOTAL_CHECKS=8
 
-# 一時ファイル(<lang>剥がし版、コードフェンス潰し版、xml抽出版)
+# 一時ファイル(<lang>剥がし版、コードフェンス潰し版、xml抽出版、メタ領域版)
 TMP_NOLANG=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
 TMP_NOFENCE=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
 TMP_XML_ONLY=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
-trap 'rm -f "$TMP_NOLANG" "$TMP_NOFENCE" "$TMP_XML_ONLY" 2>/dev/null' EXIT
+TMP_META=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
+trap 'rm -f "$TMP_NOLANG" "$TMP_NOFENCE" "$TMP_XML_ONLY" "$TMP_META" 2>/dev/null' EXIT
 
 # .md ファイルなら ```xml ... ``` ブロックだけ抽出して $FILE を差し替え。
 # Few-shot や Issue コメント等の Markdown 文書内でも、SSML 部分(```xml）
 # だけを lint 対象にする(メタテーブルや解説文の **強調** や単独漢字を誤検出しない)。
+#
+# v1.4.1 追加: .md ファイル時は「メタ報告領域」(xml ブロック以外)も別途キープして、
+# 画字混入チェック(後段の Pattern 1-meta)を実行する。エージェントが
+# 「.md は xml ブロックだけ検査と知ってた」 → 「メタ報告だから画使ってもいい」
+# と意識的にバイパスする事案(Q7 セーフゾーン化、Issue #18 観測)を構造的に潰す。
+IS_MD_FILE=0
+ORIG_FILE="$FILE"
 EXT="${FILE##*.}"
 if [[ "$EXT" == "md" ]]; then
+    IS_MD_FILE=1
     awk '/^```xml/{flag=1; next} /^```$/{flag=0; next} flag' "$FILE" > "$TMP_XML_ONLY"
+    # メタ領域 = ```xml ... ``` ブロック以外(=ドキュメント本文・テーブル・見出し等)
+    awk '
+        /^```xml/{flag=1; next}
+        /^```$/{if(flag){flag=0; next}}
+        !flag{print}
+    ' "$FILE" > "$TMP_META"
     if [[ -s "$TMP_XML_ONLY" ]]; then
-        printf "%s(.md ファイル: \`\`\`xml ブロックのみ検証)%s\n" "$DIM" "$RESET"
+        printf "%s(.md ファイル: \`\`\`xml ブロックのみ検証 + メタ領域は画字追加検査)%s\n" "$DIM" "$RESET"
         FILE="$TMP_XML_ONLY"
     fi
 fi
@@ -191,6 +206,30 @@ if [[ "$HITS_1" -eq 0 ]]; then
 else
     print_ng 1 "鬼門ワード(ルールE)" "$HITS_1"
     awk_show "$TMP_NOLANG" "$PATTERN_1"
+fi
+
+# v1.4.1 追加: .md ファイルのメタ報告領域(xml ブロック以外)に対する画字追加検査
+# - エージェントが「メタ報告だから画使ってもいい」と意識的判断する Q7 セーフゾーン化を潰す
+# - 「lint テーブル本文」「ドキュメントの解説」「コメント本文の表」に「二画」「三画」等が
+#   混入する事案(Issue #18 観測)を構造的に捕捉
+# - 検査対象: 漢数字・アラビア数字いずれの「N画」+ 「画数」 + 「画が多い」+ 単独「画」
+# - 走らせるのは .md ファイル時のみ。.xml 直接 lint には影響しない
+if [[ $IS_MD_FILE -eq 1 ]] && [[ -s "$TMP_META" ]]; then
+    PATTERN_1_META='[0-9一二三四五六七八九十百千]+画|画数|画が多い|二画|三画|四画|五画|六画|七画|八画|九画|十画|十一画|十二画|十三画|十四画|十五画|十六画|十七画|十八画|十九画|二十画'
+    HITS_1_META=$(awk_count "$TMP_META" "$PATTERN_1_META")
+    if [[ "$HITS_1_META" -eq 0 ]]; then
+        printf "%s   ✓ .md メタ領域(lint テーブル本文/ドキュメント部分)に画字混入なし%s\n" "$DIM" "$RESET"
+    else
+        printf "%s❌ [1/%d] 鬼門ワード(ルールE) .md メタ報告領域に画混入: %d hits%s\n" \
+            "$RED" "$TOTAL_CHECKS" "$HITS_1_META" "$RESET"
+        printf "%s   ↑ lint テーブル本文/ドキュメント部分に画字検出。'メタ報告だから画使ってもいい' は禁止%s\n" \
+            "$YELLOW" "$RESET"
+        awk_show "$TMP_META" "$PATTERN_1_META"
+        # 元の HITS_1 が 0 でも、メタ領域ヒットがあれば NG_COUNT を立てる
+        if [[ "$HITS_1" -eq 0 ]]; then
+            NG_COUNT=$((NG_COUNT + 1))
+        fi
+    fi
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -305,10 +344,13 @@ fi
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # [6/N] 文法ポイント固定文化警告(Phase 4 動的化)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# - 「文法ポイントは三つや」リテラル検出
+# - v1.4.0: 「文法ポイントは三つや」リテラルのみ検出 → エージェントが半角数字 / 表現
+#   バリエーションで容易に回避してくる(Q3 lint 隙間狙い、Issue #17 観測)
+# - v1.4.1: 検出範囲を「文法ポイント XX (三|３|3|參)つ」「ポイント(は|を) XX (三|３|3)つ」
+#   まで拡張。これで「文法ポイントを3つ見ていくで」「ポイントは三つあるで」等も捕捉
 # - 設計書④ Phase 4 改修: 短文ペア(20字以下)で 3 ポイント水増しを防ぐ
 # - 本当に 3 ポイントあるなら問題ないが、目視確認を促す
-PATTERN_6='文法ポイントは三つや'
+PATTERN_6='文法ポイント.{0,12}(三|３|3|參)つ|ポイント(は|を).{0,5}(三|３|3)つ'
 
 HITS_6=$(awk_count "$FILE" "$PATTERN_6")
 if [[ "$HITS_6" -eq 0 ]]; then
