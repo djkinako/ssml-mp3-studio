@@ -35,6 +35,33 @@ body:
 
         ※ **v4 モードを選んだ場合、「林老師ネイティブチェック」欄および上記強制ルールは無視されます。**
 
+  - type: textarea
+    id: forced-rules-acknowledgment
+    attributes:
+      label: ⚠️ 強制ルール(エージェント向け、起票時自動入力)
+      description: |
+        起票時にデフォルト文が自動入力されます。**削除しないでください**。
+        この欄は Issue 本文に物理的に含まれることで、エージェントが必ず読む位置にルールを配置するためのものです。
+        v4 モード選択時はこの強制ルールは無視されます。
+      value: |
+        ## v5-modular 強制ルール(v1.6.3)
+
+        このフォーマットで起票された Issue を **v5-modular で対応する場合**、エージェントは以下を **必ず実施**:
+
+        - 🎓 **林老師ネイティブチェック実施**(下記 Dropdown「実施」選択時、スキップ判断は **構造的に禁止**)
+        - 📋 **SKILL.md Step 5.4 物理化チェック実行**(`test -f .claude/skills/native-checker-v1/SKILL.md` + Sonnet ping)
+        - 🔍 **投稿前 lint `--pre-post` で PATTERN_15 検証**(マーカー + 物理ログ突合)
+        - 💰 **Step 7 でコスト開示**(実 Sonnet 起動ペア数 + 推定コスト)
+        - 🚫 **「再オーダーくれたら対応」等のユーザー手間転嫁フレーズ禁止**
+
+        これらは v1.6.0 第4世代失敗(「親切」「手間消し」で CLAUDE.md 原則反転)を防ぐ三層防御です。
+        **コスト・規模・時間・「動作不安」を理由としたスキップは構造的に禁止**されています。
+        判断に迷ったら必ず AskUserQuestion で投稿前確認(上限1回)。
+
+        v4 モード選択時はこの強制ルールは無視。
+    validations:
+      required: false
+
   - type: dropdown
     id: prompt-mode
     attributes:
