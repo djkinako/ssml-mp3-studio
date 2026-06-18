@@ -10,11 +10,14 @@ body:
         1. 下の欄に **日本語文 + 台湾華語(繁体字)文のペア** を入力(複数可、`---` 区切り)
         2. **プロンプトモード**を選択(v4 = シンプル全部入り / v5-modular = モジュール式深掘り)
         3. v5-modular なら **モジュール選択**(漢字書取/語彙/文法 のどれを出すか)
-        4. Issue を起票したらコメントで「対応して」or Claude Code 起動
-        5. Claude Code が指定モードで SSML を生成し、このIssueに貼る
-        6. 生成された SSML をコピー → [SSML MP3 Studio](https://djkinako.github.io/ssml-mp3-studio/) に貼って MP3 ダウンロード
+        4. v5-modular なら **🎓 林老師ネイティブチェック**(推奨「実施」)
+        5. Issue を起票したらコメントで「対応して」or Claude Code 起動
+        6. Claude Code が指定モードで SSML を生成し、このIssueに貼る
+        7. 生成された SSML をコピー → [SSML MP3 Studio](https://djkinako.github.io/ssml-mp3-studio/) に貼って MP3 ダウンロード
 
         ※ MP3 生成は自動化されません(ブラウザで手作業)。これは vibe coding 流儀で意図的にシンプル化。
+
+        ※ **v4 モードを選んだ場合、「林老師ネイティブチェック」欄は無視されます。**
 
   - type: dropdown
     id: prompt-mode
@@ -48,6 +51,20 @@ body:
           required: false
         - label: "Phase 4: 文法モジュール(構文・文末詞 最大3ポイント)"
           required: false
+
+  - type: dropdown
+    id: native-check
+    attributes:
+      label: 🎓 林老師ネイティブチェック (v5-modular 時のみ有効)
+      description: |
+        Phase 3 派生語のネイティブ感を Sonnet 林老師エージェントでチェックします。
+        **v4 モードを選んだ場合この欄は無視されます。**
+      options:
+        - "実施(推奨・デフォルト)"
+        - "スキップ(理由メモに必須)"
+      default: 0
+    validations:
+      required: false
 
   - type: textarea
     id: lesson-pairs
@@ -97,7 +114,7 @@ body:
     id: notes
     attributes:
       label: メモ(任意)
-      description: "特別な指示や、特定の解説観点(例: 「成語より構文を厚めに」「副詞のニュアンス重視」など)があれば"
+      description: "特別な指示や、特定の解説観点(例: 「成語より構文を厚めに」「副詞のニュアンス重視」など)があれば。林老師チェックを「スキップ」にした場合はここに理由を必ず明記。"
       placeholder: |
         例: この回は特に「把構文」と「被構文」の対比を意識した解説にしてほしい
     validations:
