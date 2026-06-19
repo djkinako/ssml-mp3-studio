@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # v5-modular-lint.sh — SSML モジュール式教材 投稿前チェッカー
 #
-# 設計書: tmp/v1.6.1-design/DESIGN.md(本ファイルは v1.6.1 改修反映済み)
-#         前提: tmp/v1.6.0-design/DESIGN.md ④ / tmp/v1.5.1-design/DESIGN.md ①
+# 設計書: tmp/v1.6.5-staging/(★v1.6.5 hot fix:Markdown 構造 lint PATTERN_15-19 追加★)
+# v1.6.5: TOTAL_CHECKS 14→19、[14/19]=既存 PATTERN_15 偽装検出(維持)。
+# 新規 [15..19] = .md 限定の Markdown 構造 lint(ペア見出し↔Phase 0 表突合 / 空欄 /
+# Phase ラベル↔ナレーション一致 / 機能語単独 lang)。Issue #32 第6世代失敗対策。
 # 用途: 各モジュール生成直後に走らせ、鬼門ワード/単独漢字/二度読み等の
 #       NG パターンを 1 秒以内に検出する。
 # 終了コード:
@@ -350,7 +352,9 @@ fi
 #   - --strict 拡張(全体整合系)は [S1/14], [S2/14] サブカテゴリ表示で番号衝突回避
 #   - TOTAL_CHECKS: 12 → 14
 NG_COUNT=0
-TOTAL_CHECKS=14
+# v1.6.5: TOTAL_CHECKS 14 → 19。[14/19]=既存 PATTERN_15 偽装検出(維持)。
+# 新規 [15..19] = Markdown 構造 lint(ペア見出し突合 / 空欄 / Phase ラベル一致 / 機能語単独 lang)。
+TOTAL_CHECKS=19
 
 # 一時ファイル(<lang>剥がし版、コードフェンス潰し版、xml抽出版、メタ領域版、辞書語抽出版、auto-allowlist 抽出版)
 TMP_NOLANG=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
@@ -1310,6 +1314,199 @@ if [[ $PRE_POST -eq 1 ]]; then
         printf "%s   ↑ 主検出は通過したが、旧偽装語彙(「Opus 内部 sanity check」「コスト面で重」等)" "$YELLOW"
         printf "がコメント本文に残存。誤検出なら本文を書き直せ%s\n" "$RESET"
     fi
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ★v1.6.5★ PATTERN_15-19 — Markdown 構造 lint(第6世代失敗 hot fix)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Issue #32 で発覚した Markdown wrapper 層の systematic off-by-one shift を
+# 構造的に潰す 5 パターン。.md ファイル時のみ走らせる(SSML 内部 lint と並走)。
+# 既存 SSML lint(PATTERN_1-14)が ```xml ブロックだけを見ていたため、見出し
+# シフト・空ペア見出し・ナレーション崩れを取り逃していた。本セクションで
+# ORIG_FILE 全体(Markdown 構造)を走査する。
+if [[ $IS_MD_FILE -eq 1 ]]; then
+    # ── [15/19] ペア見出し ↔ Phase 0 サマリ表突合 ──
+    # 「## ペアN: 日本語見出し / 中国語見出し」を抽出し、同一ファイル内の
+    # Phase 0 サマリ表 N 行目の見出しと grep -F 突合する。
+    # 第6世代失敗(全数 1 ズレ + ペア1空欄)の根本原因を直接検出する。
+    TMP_P15_HEADINGS=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
+    TMP_P15_TABLE=$(mktemp -t v5lint.XXXXXX) || { echo "mktemp 失敗" >&2; exit 2; }
+
+    # 見出し抽出:「## ペアN: 日本語 / 中国語」→ "N\t日本語\t中国語"
+    # 注: -CSAD だけだと ソース UTF-8 リテラル(「ペア」)が壊れる → -Mutf8 必須
+    perl -CSAD -Mutf8 -ne '
+        if (/^##\s+ペア(\d+)\s*:\s*(.*?)\s*$/) {
+            my ($n, $rest) = ($1, $2);
+            my ($jp, $zh) = ("", "");
+            if ($rest =~ m{^(.*?)\s*/\s*(.*)$}) {
+                $jp = $1; $zh = $2;
+            } else {
+                $jp = $rest;
+            }
+            $jp =~ s/^\s+|\s+$//g;
+            $zh =~ s/^\s+|\s+$//g;
+            print "$n\t$jp\t$zh\n";
+        }
+    ' "$ORIG_FILE" > "$TMP_P15_HEADINGS"
+
+    # Phase 0 サマリ表抽出:| ペア | 日本語見出し | 中国語見出し | フォーカス語 ... の行
+    # ヘッダ行(「ペア」「日本語」「中国語」を含む)と区切り行(`|---|`)を飛ばし、
+    # N(数値) + 日本語 + 中国語 の 3 列だけ TSV で取り出す。
+    # awk -F'|' は行頭 `|` で空フィールド $1 が出る → 実データは $2,$3,$4
+    awk -F'|' '
+        BEGIN { in_table = 0 }
+        /^\|[[:space:]]*ペア[[:space:]]*\|[[:space:]]*日本語/ { in_table = 1; next }
+        in_table && /^\|[[:space:]]*[-:]+[[:space:]]*\|/ { next }
+        in_table && /^\|/ {
+            for (i = 1; i <= NF; i++) { sub(/^[ \t]+/, "", $i); sub(/[ \t]+$/, "", $i) }
+            if ($2 ~ /^[0-9]+$/) {
+                print $2 "\t" $3 "\t" $4
+            }
+            next
+        }
+        in_table && !/^\|/ { in_table = 0 }
+    ' "$ORIG_FILE" > "$TMP_P15_TABLE"
+
+    P15_NEW_HITS=0
+    P15_NEW_DETAILS=""
+    if [[ -s "$TMP_P15_HEADINGS" ]] && [[ -s "$TMP_P15_TABLE" ]]; then
+        while IFS=$'\t' read -r p_n p_jp p_zh; do
+            [[ -z "$p_n" ]] && continue
+            # 同一 N の表行を引く
+            t_row=$(awk -F'\t' -v n="$p_n" '$1 == n {print; exit}' "$TMP_P15_TABLE")
+            if [[ -z "$t_row" ]]; then
+                P15_NEW_HITS=$((P15_NEW_HITS + 1))
+                P15_NEW_DETAILS="${P15_NEW_DETAILS}  ペア${p_n}: 見出しはあるが Phase 0 表に該当行なし"$'\n'
+                continue
+            fi
+            t_jp=$(printf '%s' "$t_row" | cut -f2)
+            t_zh=$(printf '%s' "$t_row" | cut -f3)
+            # 見出しと表の不一致(空でも不一致扱い)
+            if [[ "$p_jp" != "$t_jp" ]] || [[ "$p_zh" != "$t_zh" ]]; then
+                P15_NEW_HITS=$((P15_NEW_HITS + 1))
+                P15_NEW_DETAILS="${P15_NEW_DETAILS}  ペア${p_n}: 見出し[${p_jp} / ${p_zh}] ≠ 表[${t_jp} / ${t_zh}]"$'\n'
+            fi
+        done < "$TMP_P15_HEADINGS"
+    fi
+
+    if [[ ! -s "$TMP_P15_HEADINGS" ]] || [[ ! -s "$TMP_P15_TABLE" ]]; then
+        print_warn 15 "ペア見出し↔Phase 0 表突合(v1.6.5)" "見出しまたは表が抽出できず、スキップ"
+    elif [[ "$P15_NEW_HITS" -eq 0 ]]; then
+        print_ok 15 "ペア見出し↔Phase 0 表突合(v1.6.5)"
+    else
+        print_ng 15 "ペア見出し↔Phase 0 表突合(v1.6.5)" "$P15_NEW_HITS"
+        printf "%s%s%s" "$DIM" "$P15_NEW_DETAILS" "$RESET"
+        printf "%s   ↑ 第6世代失敗の typical signature(全数 1 ズレ等)。" "$YELLOW"
+        printf "見出し or 表のどちらかが 1 段ズレてないか確認%s\n" "$RESET"
+    fi
+    rm -f "$TMP_P15_HEADINGS" "$TMP_P15_TABLE" 2>/dev/null
+
+    # ── [16/19] 「## ペアN: 空」NG ──
+    # 「## ペア1: 」「## ペア3: / 」のように右側が空っぽの見出しを検出。
+    # 第6世代でペア1見出しが空欄化 + ペア7見出し消滅した症状を直接捕まえる。
+    PATTERN_16_REGEX='^##[[:space:]]+ペア[0-9]+[[:space:]]*:[[:space:]]*/?[[:space:]]*$'
+    HITS_16=$(grep -cE "$PATTERN_16_REGEX" "$ORIG_FILE" 2>/dev/null || echo 0)
+    HITS_16=$(printf '%s' "$HITS_16" | tr -d '[:space:]')
+    [[ -z "$HITS_16" ]] && HITS_16=0
+    if [[ "$HITS_16" -eq 0 ]]; then
+        print_ok 16 "「## ペアN: 空」検出(v1.6.5)"
+    else
+        print_ng 16 "「## ペアN: 空」検出(v1.6.5)" "$HITS_16"
+        grep -nE "$PATTERN_16_REGEX" "$ORIG_FILE" | while IFS= read -r hit_line; do
+            ln_num="${hit_line%%:*}"
+            ln_body="${hit_line#*:}"
+            printf "%s   L%s: %s%s\n" "$DIM" "$ln_num" "$ln_body" "$RESET"
+        done
+        printf "%s   ↑ ペア見出しの右側が空。日本語/中国語見出しを必ず両方書け%s\n" "$YELLOW" "$RESET"
+    fi
+
+    # ── [17/19] 「### Phase X: 空」NG ──
+    # 「### Phase 1: 」のように Phase ラベル後が空のケースを検出。
+    # 第6世代で全 Phase ラベルが空化 + Phase 1 空欄の症状を直接潰す。
+    PATTERN_17_REGEX='^###[[:space:]]+Phase[[:space:]]+[0-9]+[[:space:]]*:[[:space:]]*$'
+    HITS_17=$(grep -cE "$PATTERN_17_REGEX" "$ORIG_FILE" 2>/dev/null || echo 0)
+    HITS_17=$(printf '%s' "$HITS_17" | tr -d '[:space:]')
+    [[ -z "$HITS_17" ]] && HITS_17=0
+    if [[ "$HITS_17" -eq 0 ]]; then
+        print_ok 17 "「### Phase X: 空」検出(v1.6.5)"
+    else
+        print_ng 17 "「### Phase X: 空」検出(v1.6.5)" "$HITS_17"
+        grep -nE "$PATTERN_17_REGEX" "$ORIG_FILE" | while IFS= read -r hit_line; do
+            ln_num="${hit_line%%:*}"
+            ln_body="${hit_line#*:}"
+            printf "%s   L%s: %s%s\n" "$DIM" "$ln_num" "$ln_body" "$RESET"
+        done
+        printf "%s   ↑ Phase ラベルの右側が空。モジュール名(ベース SSML / 漢字書取モジュール 等)を書け%s\n" "$YELLOW" "$RESET"
+    fi
+
+    # ── [18/19] Phase ラベル ↔ SSML ナレーション一致 ──
+    # 期待ラベル: {1: "ベース SSML", 2: "漢字書取モジュール", 3: "語彙深掘りモジュール", 4: "文法モジュール"}
+    # 「### Phase 2: ベース SSML」(本来 Phase 1 のラベル)のようなシフトを検出。
+    # 第6世代の Phase 見出し全数シフトを構造的に潰す。
+    PATTERN_18_NG=0
+    PATTERN_18_DETAIL=""
+    while IFS= read -r ph_line; do
+        [[ -z "$ph_line" ]] && continue
+        ln_num="${ph_line%%:*}"
+        body="${ph_line#*:}"
+        ph_num=$(printf '%s' "$body" | sed -nE 's/^###[[:space:]]+Phase[[:space:]]+([0-9]+)[[:space:]]*:.*/\1/p')
+        ph_label=$(printf '%s' "$body" | sed -nE 's/^###[[:space:]]+Phase[[:space:]]+[0-9]+[[:space:]]*:[[:space:]]*(.*)$/\1/p')
+        # 末尾空白除去
+        ph_label="${ph_label%"${ph_label##*[![:space:]]}"}"
+        [[ -z "$ph_label" ]] && continue  # PATTERN_17 でカバー済み
+        expected=""
+        case "$ph_num" in
+            1) expected="ベース SSML" ;;
+            2) expected="漢字書取モジュール" ;;
+            3) expected="語彙深掘りモジュール" ;;
+            4) expected="文法モジュール" ;;
+            *) continue ;;
+        esac
+        if [[ "$ph_label" != "$expected" ]]; then
+            PATTERN_18_NG=$((PATTERN_18_NG + 1))
+            PATTERN_18_DETAIL="${PATTERN_18_DETAIL}  L${ln_num}: Phase ${ph_num} 期待[${expected}] ≠ 実[${ph_label}]"$'\n'
+        fi
+    done < <(grep -nE '^###[[:space:]]+Phase[[:space:]]+[0-9]+[[:space:]]*:' "$ORIG_FILE" 2>/dev/null || true)
+
+    if [[ "$PATTERN_18_NG" -eq 0 ]]; then
+        print_ok 18 "Phase ラベル↔ナレーション一致(v1.6.5)"
+    else
+        print_ng 18 "Phase ラベル↔ナレーション一致(v1.6.5)" "$PATTERN_18_NG"
+        printf "%s%s%s" "$DIM" "$PATTERN_18_DETAIL" "$RESET"
+        printf "%s   ↑ Phase 番号と本来のモジュール名が不一致。全数 1 段シフト疑い%s\n" "$YELLOW" "$RESET"
+    fi
+
+    # ── [19/19] 機能語単独 lang タグ化 NG ──
+    # 「<lang xml:lang="cmn-TW">吧</lang>」のように、機能語 1 字だけが裸で
+    # lang タグに包まれる構造を検出。第6世代で「吧」「你」が単独 lang 化して
+    # 単音再生になっていた症状を機械的に止める。
+    # 機能語リスト: 吧/了/的/呢/嗎/啊/啦/你/我/他
+    PATTERN_19_REGEX='<lang xml:lang="cmn-TW">(吧|了|的|呢|嗎|啊|啦|你|我|他)</lang>'
+    HITS_19=$(grep -cE "$PATTERN_19_REGEX" "$ORIG_FILE" 2>/dev/null || echo 0)
+    HITS_19=$(printf '%s' "$HITS_19" | tr -d '[:space:]')
+    [[ -z "$HITS_19" ]] && HITS_19=0
+    if [[ "$HITS_19" -eq 0 ]]; then
+        print_ok 19 "機能語単独 lang タグ化(v1.6.5)"
+    else
+        print_ng 19 "機能語単独 lang タグ化(v1.6.5)" "$HITS_19"
+        grep -nE "$PATTERN_19_REGEX" "$ORIG_FILE" | head -n 5 | while IFS= read -r hit_line; do
+            ln_num="${hit_line%%:*}"
+            ln_body="${hit_line#*:}"
+            if [[ ${#ln_body} -gt 100 ]]; then
+                ln_body="${ln_body:0:100}..."
+            fi
+            printf "%s   L%s: %s%s\n" "$DIM" "$ln_num" "$ln_body" "$RESET"
+        done
+        printf "%s   ↑ 機能語(吧/了/的/呢/嗎/啊/啦/你/我/他)を単独で lang タグに包むな。" "$YELLOW"
+        printf "前の語と一緒に包むか、地の文に出すか(機能語特例トラックは Phase 4 解説で扱う)%s\n" "$RESET"
+    fi
+else
+    # .md ファイルでない場合は PATTERN_15-19 をスキップ表示(NG_COUNT 無影響)
+    print_warn 15 "ペア見出し↔Phase 0 表突合(v1.6.5)" ".md ファイルのみ対象、スキップ"
+    print_warn 16 "「## ペアN: 空」検出(v1.6.5)" ".md ファイルのみ対象、スキップ"
+    print_warn 17 "「### Phase X: 空」検出(v1.6.5)" ".md ファイルのみ対象、スキップ"
+    print_warn 18 "Phase ラベル↔ナレーション一致(v1.6.5)" ".md ファイルのみ対象、スキップ"
+    print_warn 19 "機能語単独 lang タグ化(v1.6.5)" ".md ファイルのみ対象、スキップ"
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
